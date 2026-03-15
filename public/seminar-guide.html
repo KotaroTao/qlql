@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>プログラミング用語ガイド｜完全初心者向け</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      line-height: 1.8;
+    }
+
+    /* ───── ヒーロー ───── */
+    .hero {
+      background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+      color: #fff;
+      text-align: center;
+      padding: 64px 24px;
+    }
+    .hero h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 800;
+      margin-bottom: 16px;
+      letter-spacing: 0.02em;
+    }
+    .hero p {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* ───── コンテナ ───── */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+
+    /* ───── 目次 ───── */
+    .toc {
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 48px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .toc h2 {
+      font-size: 1.3rem;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+    }
+    .toc-grid a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #334155;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: background 0.15s;
+    }
+    .toc-grid a:hover { background: #e2e8f0; }
+    .toc-num {
+      background: #2563eb;
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    /* ───── セクション ───── */
+    .section {
+      background: #fff;
+      border-radius: 16px;
+      padding: 36px 32px;
+      margin-bottom: 32px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      scroll-margin-top: 24px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #f1f5f9;
+    }
+    .section-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+    .section-header h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+    .section-header h2 small {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 400;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    /* ───── たとえ話ボックス ───── */
+    .analogy {
+      background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+      border-left: 4px solid #2563eb;
+      border-radius: 0 12px 12px 0;
+      padding: 20px 24px;
+      margin: 20px 0;
+    }
+    .analogy-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #2563eb;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    /* ───── コードブロック ───── */
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      margin: 16px 0;
+      font-family: "SFMono-Regular", "Fira Code", "Consolas", monospace;
+    }
+    pre .comment { color: #64748b; }
+    pre .highlight { color: #60a5fa; }
+    pre .string { color: #86efac; }
+    pre .arrow { color: #fbbf24; }
+
+    /* ───── テーブル ───── */
+    .table-wrap {
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+    th {
+      background: #f1f5f9;
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    /* ───── 図 ───── */
+    .diagram {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 20px 0;
+      font-family: "SFMono-Regular", "Fira Code", "Consolas", monospace;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre;
+      color: #334155;
+    }
+
+    /* ───── 注意・ポイント ───── */
+    .point {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      border-radius: 0 12px 12px 0;
+      padding: 16px 20px;
+      margin: 16px 0;
+      font-size: 0.93rem;
+    }
+    .point-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #d97706;
+      margin-bottom: 4px;
+    }
+
+    p { margin: 12px 0; }
+    ul, ol { margin: 12px 0; padding-left: 24px; }
+    li { margin: 6px 0; }
+    strong { color: #0f172a; }
+    code {
+      background: #f1f5f9;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.88em;
+      font-family: "SFMono-Regular", "Fira Code", "Consolas", monospace;
+      color: #7c3aed;
+    }
+
+    /* ───── カラーテーマ ───── */
+    .bg-blue    { background: #dbeafe; color: #1e40af; }
+    .bg-purple  { background: #ede9fe; color: #6d28d9; }
+    .bg-green   { background: #dcfce7; color: #166534; }
+    .bg-orange  { background: #ffedd5; color: #c2410c; }
+    .bg-red     { background: #fee2e2; color: #b91c1c; }
+    .bg-teal    { background: #ccfbf1; color: #0f766e; }
+    .bg-pink    { background: #fce7f3; color: #be185d; }
+    .bg-yellow  { background: #fef9c3; color: #a16207; }
+    .bg-slate   { background: #e2e8f0; color: #334155; }
+    .bg-cyan    { background: #cffafe; color: #0e7490; }
+    .bg-indigo  { background: #e0e7ff; color: #4338ca; }
+
+    /* ───── フッター ───── */
+    .footer {
+      text-align: center;
+      padding: 40px 20px;
+      color: #94a3b8;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 640px) {
+      .section { padding: 24px 20px; }
+      .toc { padding: 24px 20px; }
+      .toc-grid { grid-template-columns: 1fr; }
+      pre { font-size: 0.8rem; padding: 16px; }
+      .diagram { font-size: 0.75rem; padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== ヒーロー ===== -->
+<header class="hero">
+  <h1>プログラミング用語ガイド</h1>
+  <p>完全初心者のための「たとえ話でわかる」<br>Web開発の基礎知識</p>
+</header>
+
+<div class="container">
+
+<!-- ===== 目次 ===== -->
+<nav class="toc">
+  <h2>📖 もくじ</h2>
+  <div class="toc-grid">
+    <a href="#git"><span class="toc-num">1</span>Git / GitHub</a>
+    <a href="#terminal"><span class="toc-num">2</span>ターミナル</a>
+    <a href="#npm"><span class="toc-num">3</span>npm</a>
+    <a href="#env"><span class="toc-num">4</span>.env ファイル</a>
+    <a href="#gitignore"><span class="toc-num">5</span>.gitignore</a>
+    <a href="#frontend-backend"><span class="toc-num">6</span>フロントエンド / バックエンド</a>
+    <a href="#api"><span class="toc-num">7</span>API</a>
+    <a href="#database"><span class="toc-num">8</span>データベース</a>
+    <a href="#framework"><span class="toc-num">9</span>フレームワーク / ライブラリ</a>
+    <a href="#deploy"><span class="toc-num">10</span>デプロイ</a>
+    <a href="#docker"><span class="toc-num">11</span>Docker</a>
+  </div>
+</nav>
+
+<!-- ===== 1. Git / GitHub ===== -->
+<section class="section" id="git">
+  <div class="section-header">
+    <div class="section-icon bg-blue">🔀</div>
+    <h2>Git / GitHub<small>コードのバージョン管理と共有</small></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    <strong>Git</strong> = 作業の「セーブ機能」。RPGのセーブポイントのように、いつでも過去の状態に戻れます。<br>
+    <strong>GitHub</strong> = セーブデータを保存する「クラウド上のセーブスロット」。他の人とも共有できます。
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>用語</th><th>意味</th><th>たとえ</th></tr>
+      <tr>
+        <td><strong>リポジトリ</strong></td>
+        <td>プロジェクト全体の保管場所</td>
+        <td>1つのゲームのセーブフォルダ</td>
+      </tr>
+      <tr>
+        <td><strong>コミット</strong></td>
+        <td>変更を記録すること</td>
+        <td>セーブする</td>
+      </tr>
+      <tr>
+        <td><strong>プッシュ</strong></td>
+        <td>自分のPCのセーブをGitHubに送る</td>
+        <td>セーブデータをクラウドにアップロード</td>
+      </tr>
+      <tr>
+        <td><strong>プル</strong></td>
+        <td>GitHubの最新をPCにダウンロード</td>
+        <td>クラウドから最新セーブを取得</td>
+      </tr>
+      <tr>
+        <td><strong>ブランチ</strong></td>
+        <td>メインとは別の作業場所を作る</td>
+        <td>下書き用のコピーを作って、完成したら本物に合体</td>
+      </tr>
+      <tr>
+        <td><strong>クローン</strong></td>
+        <td>GitHubからプロジェクトを丸ごとコピー</td>
+        <td>友達のセーブデータを自分のPCにダウンロード</td>
+      </tr>
+    </table>
+  </div>
+
+  <h3>よく使うコマンド</h3>
+  <pre><span class="comment"># 変更の確認（今どのファイルが変わったか見る）</span>
+git status
+
+<span class="comment"># ファイルをセーブ対象に追加</span>
+git add ファイル名
+
+<span class="comment"># セーブする（メッセージ付き）</span>
+git commit -m <span class="string">"ログイン機能を追加"</span>
+
+<span class="comment"># GitHubに送る</span>
+git push
+
+<span class="comment"># GitHubから最新を取得</span>
+git pull</pre>
+</section>
+
+<!-- ===== 2. ターミナル ===== -->
+<section class="section" id="terminal">
+  <div class="section-header">
+    <div class="section-icon bg-slate">⬛</div>
+    <h2>ターミナル<small>コマンドライン / シェル</small></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    パソコンへの<strong>「文字による指示書」</strong>。普段はマウスでクリックして操作しますが、ターミナルでは文字を打って指示を出します。
+    プログラマーにとっては、マウスより<strong>速くて正確</strong>なのでよく使います。
+  </div>
+
+  <div class="diagram">あなた ──「このフォルダのファイル一覧を見せて」──→ ターミナル ──→ パソコン
+                                                                       ↓
+あなた ←── ファイル一覧が表示される ←──────────────────────── 結果を返す</div>
+
+  <h3>よく使うコマンド</h3>
+  <pre><span class="comment"># 今いるフォルダを確認</span>
+pwd
+
+<span class="comment"># ファイル一覧を表示</span>
+ls
+
+<span class="comment"># フォルダを移動</span>
+cd フォルダ名
+
+<span class="comment"># フォルダを作る</span>
+mkdir フォルダ名
+
+<span class="comment"># ファイルの中身を見る</span>
+cat ファイル名</pre>
+</section>
+
+<!-- ===== 3. npm ===== -->
+<section class="section" id="npm">
+  <div class="section-header">
+    <div class="section-icon bg-red">📦</div>
+    <h2>npm<small>Node Package Manager</small></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    <strong>「プログラミング用のApp Store＋自動インストーラー」</strong>。
+    他の人が作った便利な部品（パッケージ）を、コマンド1つでダウンロードして自分のプロジェクトで使えます。
+  </div>
+
+  <div class="diagram">あなたのアプリ
+├── 自分で書いたコード
+└── npm で取り寄せた「部品」たち
+    ├── next         → Webアプリの土台
+    ├── react        → 画面を作る仕組み
+    ├── prisma       → データベースとやり取りする道具
+    ├── tailwindcss  → デザインを簡単にするCSS
+    └── ...他にも数百個</div>
+
+  <h3>重要なファイル</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>ファイル</th><th>役割</th><th>たとえ</th></tr>
+      <tr>
+        <td><code>package.json</code></td>
+        <td>必要なパッケージのリスト</td>
+        <td>料理のレシピ（材料一覧）</td>
+      </tr>
+      <tr>
+        <td><code>package-lock.json</code></td>
+        <td>バージョンの正確な記録</td>
+        <td>材料の産地・ロット番号まで記録した仕入れ台帳</td>
+      </tr>
+      <tr>
+        <td><code>node_modules/</code></td>
+        <td>ダウンロードされたパッケージ本体</td>
+        <td>実際に届いた材料（非常に大きいのでGitHubには上げない）</td>
+      </tr>
+    </table>
+  </div>
+
+  <h3>よく使うコマンド</h3>
+  <pre><span class="comment"># パッケージを一括インストール（材料を全部そろえる）</span>
+npm install
+
+<span class="comment"># 開発サーバーを起動（手元で動かして確認する）</span>
+npm run dev
+
+<span class="comment"># ビルド（本番用に最適化して組み立てる）</span>
+npm run build
+
+<span class="comment"># テスト実行（正しく動くか確認する）</span>
+npm run test
+
+<span class="comment"># 新しいパッケージを追加</span>
+npm install パッケージ名</pre>
+</section>
+
+<!-- ===== 4. .env ===== -->
+<section class="section" id="env">
+  <div class="section-header">
+    <div class="section-icon bg-yellow">🔑</div>
+    <h2>.env ファイル<small>環境変数ファイル（ドットイーエヌブイ）</small></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    アプリを「お店」に例えると、.env は<strong>「金庫の暗証番号や鍵が書かれたメモ」</strong>。
+    お店の設計図（コード）は誰に見せてもOKですが、暗証番号は店長だけが持つべきものです。
+  </div>
+
+  <h3>中に書く内容の例</h3>
+  <pre><span class="comment"># データベースの接続先（住所とパスワード）</span>
+DATABASE_URL=<span class="string">"postgresql://user:password@localhost:5432/mydb"</span>
+
+<span class="comment"># 外部サービスのAPIキー（秘密の通行証）</span>
+PAYJP_SECRET_KEY=<span class="string">"sk_test_xxxxxxxxxxxxx"</span>
+
+<span class="comment"># ログイン認証用の暗号化キー</span>
+JWT_SECRET=<span class="string">"ランダムな長い文字列"</span>
+
+<span class="comment"># アプリのURL</span>
+NEXT_PUBLIC_APP_URL=<span class="string">"http://localhost:3000"</span></pre>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>よくある項目</th><th>用途</th></tr>
+      <tr><td>データベース接続情報</td><td>DBのホスト名・パスワード</td></tr>
+      <tr><td>APIキー</td><td>決済・地図・メール送信などの外部サービス</td></tr>
+      <tr><td>認証用シークレット</td><td>ログイン機能の暗号化</td></tr>
+      <tr><td>アプリのURL</td><td>開発用(localhost)と本番用で切り替え</td></tr>
+      <tr><td>動作モード</td><td>開発モード / 本番モードの切り替え</td></tr>
+    </table>
+  </div>
+
+  <div class="point">
+    <div class="point-label">ポイント</div>
+    <code>.env</code> は各環境（自分のPC、本番サーバーなど）ごとに作るファイルです。GitHubには上げず、代わりに <code>.env.example</code>（中身が空のテンプレート）を共有します。
+  </div>
+</section>
+
+<!-- ===== 5. .gitignore ===== -->
+<section class="section" id="gitignore">
+  <div class="section-header">
+    <div class="section-icon bg-orange">🚫</div>
+    <h2>.gitignore<small>ドットギットイグノア（ignore＝無視する）</small></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    GitHubは「チームの共有フォルダ」。<code>.gitignore</code> はその共有フォルダの入口に貼った<strong>「これは入れないでね」と書いた張り紙</strong>です。
+  </div>
+
+  <h3>なぜ必要？</h3>
+  <pre><span class="comment"># 🔑 秘密情報 → 漏れたら大事故</span>
+.env
+
+<span class="comment"># 📦 自動生成されるもの → 各自のPCで生成すればOK</span>
+node_modules/
+.next/
+
+<span class="comment"># 💻 個人のPC設定 → 他の人には関係ない</span>
+.DS_Store
+.vscode/</pre>
+
+  <div class="diagram">あなたのPC                              GitHub（みんなが見れる）
+┌──────────────────┐                  ┌──────────────────┐
+│ ソースコード     │── git push ───→ │ ソースコード     │
+│ .env（秘密情報） │── ✖ ブロック    │                  │
+│ node_modules/    │── ✖ ブロック    │ .env.example     │
+│                  │      ↑          │ .gitignore       │
+│           .gitignore が止めている  │                  │
+└──────────────────┘                  └──────────────────┘</div>
+</section>
+
+<!-- ===== 6. フロントエンド / バックエンド ===== -->
+<section class="section" id="frontend-backend">
+  <div class="section-header">
+    <div class="section-icon bg-teal">🖥️</div>
+    <h2>フロントエンド / バックエンド<small>画面側 / サーバー側</small></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    レストランで例えると――<br>
+    <strong>フロントエンド</strong> = ホール（お客さんが見る場所：メニュー、テーブル、内装）<br>
+    <strong>バックエンド</strong> = 厨房（お客さんから見えない場所：調理、在庫管理、会計処理）
+  </div>
+
+  <div class="diagram">ユーザー（お客さん）
+  │
+  │ ブラウザで画面を見る・ボタンを押す
+  ↓
+┌──────────────────────────────────┐
+│  フロントエンド（ホール）          │
+│  HTML / CSS / JavaScript         │
+│  React, Vue, Tailwind CSS など   │
+└──────────────┬───────────────────┘
+               │ データをください！（APIリクエスト）
+               ↓
+┌──────────────────────────────────┐
+│  バックエンド（厨房）              │
+│  Node.js, Python, Ruby など      │
+│  データベースとやり取り            │
+│  ログイン処理、決済処理            │
+└──────────────────────────────────┘</div>
+
+  <div class="point">
+    <div class="point-label">ポイント</div>
+    Next.js のようなフレームワークは、フロントエンドとバックエンドを<strong>1つのプロジェクトで両方できる</strong>のが特徴です（フルスタックフレームワークと呼びます）。
+  </div>
+</section>
+
+<!-- ===== 7. API ===== -->
+<section class="section" id="api">
+  <div class="section-header">
+    <div class="section-icon bg-purple">🔌</div>
+    <h2>API<small>Application Programming Interface</small></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    レストランの<strong>「注文窓口」</strong>。
+    お客さん（フロントエンド）が「カレーください」と注文すると、厨房（バックエンド）が調理して「はいどうぞ」と返してくれる。
+    この<strong>注文の受け渡しルール</strong>がAPIです。
+  </div>
+
+  <div class="diagram">① フロントエンドが注文を出す
+   「/api/users のデータをください」（リクエスト）
+           │
+           ↓
+② バックエンドが処理する
+   データベースからユーザー情報を取得
+           │
+           ↓
+③ 結果を返す
+   { "name": "田中", "age": 30 }（レスポンス）</div>
+
+  <h3>2種類のAPI</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>種類</th><th>説明</th><th>例</th></tr>
+      <tr>
+        <td><strong>自分のAPI</strong></td>
+        <td>自分のアプリ内でフロントとバックをつなぐ</td>
+        <td><code>/api/auth/login</code>（ログイン処理）</td>
+      </tr>
+      <tr>
+        <td><strong>外部API</strong></td>
+        <td>他社のサービスを借りて使う</td>
+        <td>Pay.jp（決済）、Google Maps（地図）</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ===== 8. データベース ===== -->
+<section class="section" id="database">
+  <div class="section-header">
+    <div class="section-icon bg-green">🗄️</div>
+    <h2>データベース<small>DB（ディービー）</small></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    <strong>「超高機能なExcel」</strong>。ユーザー情報、注文履歴、商品データなどを表（テーブル）に整理して保存し、
+    必要なデータを一瞬で検索・取得できます。
+  </div>
+
+  <div class="diagram">データベースの中身（イメージ）
+
+┌─ users テーブル ─────────────────────────┐
+│  id  │  name    │  email              │  age │
+│───────────────────────────────────────────│
+│  1   │  田中    │  tanaka@example.com  │  30  │
+│  2   │  鈴木    │  suzuki@example.com  │  25  │
+└───────────────────────────────────────────┘
+
+┌─ orders テーブル ────────────────────────┐
+│  id  │  user_id │  product    │  price  │
+│───────────────────────────────────────────│
+│  1   │  1       │  歯ブラシA  │  500    │
+│  2   │  2       │  歯磨き粉B  │  800    │
+└───────────────────────────────────────────┘</div>
+
+  <h3>よく使うデータベース</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>名前</th><th>特徴</th></tr>
+      <tr><td><strong>PostgreSQL</strong></td><td>高機能で信頼性が高い。本格的なWebアプリ向き</td></tr>
+      <tr><td><strong>MySQL</strong></td><td>広く使われている。WordPressなどで有名</td></tr>
+      <tr><td><strong>SQLite</strong></td><td>軽量でインストール不要。小規模アプリや学習向き</td></tr>
+    </table>
+  </div>
+
+  <h3>ORM（オーアールエム）とは？</h3>
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    データベースとの<strong>「通訳」</strong>。データベースには専用の言語（SQL）で話しかける必要がありますが、ORMを使えば普段のプログラミング言語で操作できます。
+  </div>
+  <pre><span class="comment">// ORMなし（SQL言語で直接書く）</span>
+SELECT * FROM users WHERE age > 20;
+
+<span class="comment">// ORMあり（Prismaの場合：普通のコードで書ける）</span>
+<span class="highlight">const</span> users = <span class="highlight">await</span> prisma.user.findMany({
+  where: { age: { gt: <span class="string">20</span> } }
+});</pre>
+</section>
+
+<!-- ===== 9. フレームワーク / ライブラリ ===== -->
+<section class="section" id="framework">
+  <div class="section-header">
+    <div class="section-icon bg-pink">🏗️</div>
+    <h2>フレームワーク / ライブラリ<small>開発を助ける道具セット</small></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    <strong>ライブラリ</strong> = 工具箱。必要な工具（ドライバー、ペンチ等）を自分で選んで使う。<br>
+    <strong>フレームワーク</strong> = 住宅キット。家の骨組みがすでにできていて、壁紙や家具を選ぶだけで家が建つ。
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th></th><th>ライブラリ</th><th>フレームワーク</th></tr>
+      <tr>
+        <td><strong>自由度</strong></td>
+        <td>高い（好きなように組み合わせ）</td>
+        <td>低め（決まったルールに従う）</td>
+      </tr>
+      <tr>
+        <td><strong>学習コスト</strong></td>
+        <td>部品ごとに覚える</td>
+        <td>全体のルールを覚える</td>
+      </tr>
+      <tr>
+        <td><strong>例</strong></td>
+        <td>React, Recharts, Zod</td>
+        <td>Next.js, Ruby on Rails</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="point">
+    <div class="point-label">ポイント</div>
+    フレームワークの中でライブラリを使うことも多いです。このプロジェクトでは、Next.js（フレームワーク）の中で React（ライブラリ）や Recharts（グラフのライブラリ）を使っています。
+  </div>
+</section>
+
+<!-- ===== 10. デプロイ ===== -->
+<section class="section" id="deploy">
+  <div class="section-header">
+    <div class="section-icon bg-cyan">🚀</div>
+    <h2>デプロイ<small>アプリを公開すること</small></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    お店の<strong>「開店作業」</strong>。自宅のキッチンで試作（開発）したものを、実際のお店（サーバー）に持っていってお客さんに提供できるようにすること。
+  </div>
+
+  <div class="diagram">開発（自分のPC）                            本番（サーバー）
+┌───────────────┐                          ┌───────────────┐
+│ コードを書く  │                          │ ユーザーが    │
+│ テストする    │── git push ─→ GitHub ──→│ アクセスできる│
+│ 動作確認する  │              （自動デプロイ）│ 状態にする   │
+└───────────────┘                          └───────────────┘
+  localhost:3000                              example.com</div>
+
+  <h3>CI/CD（シーアイ・シーディー）とは？</h3>
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    <strong>「自動お届けサービス」</strong>。GitHubにコードを送る（push）だけで、テスト → ビルド → デプロイ（公開）まで全自動でやってくれます。手作業でサーバーにファイルをコピーする必要がなくなります。
+  </div>
+
+  <h3>主なデプロイ先</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>サービス</th><th>特徴</th></tr>
+      <tr><td><strong>Vercel</strong></td><td>Next.jsの開発元。設定がとても簡単</td></tr>
+      <tr><td><strong>GCP</strong></td><td>Google のクラウド。大規模サービス向き</td></tr>
+      <tr><td><strong>AWS</strong></td><td>Amazon のクラウド。世界シェアNo.1</td></tr>
+      <tr><td><strong>VPS</strong></td><td>自分専用のサーバーを借りる。自由度が高い</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ===== 11. Docker ===== -->
+<section class="section" id="docker">
+  <div class="section-header">
+    <div class="section-icon bg-indigo">🐳</div>
+    <h2>Docker<small>ドッカー</small></h2>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-label">たとえ話</div>
+    <strong>「引っ越し用の段ボール箱」</strong>。アプリと、動かすために必要なもの（OS設定・ライブラリ等）を全部1つの箱（コンテナ）に詰めて、どのPCでもそのまま動かせるようにする仕組み。
+  </div>
+
+  <div class="diagram">問題: 「自分のPCでは動くのに、他の人のPCでは動かない！」
+
+原因: PCごとにインストールされているソフトのバージョンが違う
+
+┌────────────────┐   ┌────────────────┐
+│  Aさんの PC    │   │  Bさんの PC    │
+│  Node.js 18    │   │  Node.js 16    │  ← バージョンが違う！
+│  PostgreSQL 15 │   │  PostgreSQL 13 │
+└────────────────┘   └────────────────┘
+
+解決: Docker を使うと全員同じ環境で動く
+
+┌──── Docker コンテナ ────┐
+│  Node.js 18             │  ← バージョン固定
+│  PostgreSQL 15          │
+│  アプリのコード         │
+│  必要な設定すべて       │
+└─────────────────────────┘
+  どのPCでもこの箱をそのまま動かすだけ！</div>
+
+  <h3>重要なファイル</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>ファイル</th><th>役割</th><th>たとえ</th></tr>
+      <tr>
+        <td><code>Dockerfile</code></td>
+        <td>コンテナの設計図</td>
+        <td>「箱の中にこれを入れてね」という指示書</td>
+      </tr>
+      <tr>
+        <td><code>docker-compose.yml</code></td>
+        <td>複数コンテナをまとめて管理</td>
+        <td>「アプリの箱」と「DBの箱」をセットで起動する指示書</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+</div>
+
+<footer class="footer">
+  <p>プログラミング完全初心者向けセミナー資料</p>
+</footer>
+
+</body>
+</html>
