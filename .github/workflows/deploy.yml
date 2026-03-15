@@ -23,7 +23,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           script: |
-            cd /var/www/qlql
+            cd /var/www/mieru-clinic
             echo "=== 1. コード取得 ==="
             git fetch origin
             git checkout ${{ github.event.inputs.branch || 'main' }}

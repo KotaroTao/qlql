@@ -101,7 +101,7 @@ build_image() {
     echo "コミット: $COMMIT_HASH"
 
     # ソースコードの変更を確実に反映させるため、COPYステップのキャッシュを無効化
-    docker build -f Dockerfile.production -t qlql:latest -t qlql:$COMMIT_HASH .
+    docker build -f Dockerfile.production -t mieru-clinic:latest -t mieru-clinic:$COMMIT_HASH .
 
     echo -e "${GREEN}イメージビルド完了 (タグ: latest, $COMMIT_HASH)${NC}"
 }
@@ -168,7 +168,7 @@ verify_deployment() {
     EXPECTED_COMMIT=$(git rev-parse --short HEAD)
 
     # コンテナ内のコードを確認（layoutファイルの存在確認）
-    if docker exec qlql-app test -f /app/.next/server/app/dashboard/layout.js; then
+    if docker exec mieru-clinic-app test -f /app/.next/server/app/dashboard/layout.js; then
         echo -e "${GREEN}新しいコードがデプロイされました${NC}"
     else
         echo -e "${RED}警告: コードの検証に失敗しました${NC}"

@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.production
-    container_name: qlql-app
+    container_name: mieru-clinic-app
     restart: unless-stopped
     environment:
       - NODE_ENV=production
@@ -32,7 +32,7 @@ services:
   # PostgreSQLデータベース
   db:
     image: postgres:15-alpine
-    container_name: qlql-db
+    container_name: mieru-clinic-db
     restart: unless-stopped
     environment:
       - POSTGRES_USER=dental_user
@@ -52,7 +52,7 @@ services:
   # Nginxリバースプロキシ
   nginx:
     image: nginx:alpine
-    container_name: qlql-nginx
+    container_name: mieru-clinic-nginx
     restart: unless-stopped
     ports:
       - "80:80"
