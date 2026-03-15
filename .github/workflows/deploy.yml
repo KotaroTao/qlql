@@ -24,12 +24,26 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           script: |
             cd /var/www/dental-check
+            echo "=== 1. コード取得 ==="
             git fetch origin
             git checkout ${{ github.event.inputs.branch || 'main' }}
             git pull origin ${{ github.event.inputs.branch || 'main' }}
+            echo "現在のコミット: $(git log --oneline -1)"
+
+            echo "=== 2. 依存関係インストール ==="
             npm install --production=false
             npx prisma db push --accept-data-loss
+
+            echo "=== 3. PM2停止 → キャッシュ削除 → ビルド ==="
+            pm2 stop dental-app || true
             rm -rf .next
             npm run build
-            pm2 restart dental-app
-            echo "Deployed successfully at $(date)"
+
+            echo "=== 4. PM2再起動 ==="
+            pm2 start dental-app
+            sleep 3
+
+            echo "=== 5. デプロイ検証 ==="
+            pm2 status dental-app
+            curl -sf http://localhost:3000 > /dev/null && echo "ヘルスチェック: OK" || echo "ヘルスチェック: NG"
+            echo "デプロイ完了: $(date)"
