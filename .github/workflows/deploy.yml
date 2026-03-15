@@ -15,6 +15,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get expected commit hash
+        id: expected
+        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -23,11 +30,13 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           script: |
+            set -e
+
             cd /var/www/dental-check
             echo "=== 1. コード取得 ==="
             git fetch origin
             git checkout ${{ github.event.inputs.branch || 'main' }}
-            git pull origin ${{ github.event.inputs.branch || 'main' }}
+            git reset --hard origin/${{ github.event.inputs.branch || 'main' }}
             echo "現在のコミット: $(git log --oneline -1)"
 
             echo "=== 2. 依存関係インストール ==="
@@ -47,3 +56,33 @@ jobs:
             pm2 status dental-app
             curl -sf http://localhost:3000 > /dev/null && echo "ヘルスチェック: OK" || echo "ヘルスチェック: NG"
             echo "デプロイ完了: $(date)"
+
+      - name: Verify deployed commit
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            cd /var/www/dental-check
+            DEPLOYED=$(git rev-parse --short HEAD)
+            EXPECTED="${{ steps.expected.outputs.sha }}"
+            if [ "$DEPLOYED" != "$EXPECTED" ]; then
+              echo "コミット不一致! VPS=$DEPLOYED, 期待=$EXPECTED"
+              exit 1
+            fi
+            echo "コミット検証OK: $DEPLOYED"
+
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `デプロイ失敗: ${context.sha.substring(0, 7)}`,
+              body: `## デプロイが失敗しました\n\n- **コミット**: ${context.sha}\n- **ブランチ**: ${context.ref}\n- **実行ログ**: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n- **日時**: ${new Date().toISOString()}\n\n手動デプロイが必要です。VPSにSSHして以下を実行してください:\n\`\`\`bash\ncd /var/www/dental-check\ngit pull origin main\npm2 stop dental-app && rm -rf .next && npm run build && pm2 start dental-app\n\`\`\``,
+              labels: ['deploy-failure']
+            })
