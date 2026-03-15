@@ -100,6 +100,7 @@ export default async function LinkProfilePage({ params }: Props) {
         <LinkProfileForm
           channelId={channel.id}
           channelName={channel.name}
+          channelDisplayName={channel.displayName ?? undefined}
           redirectUrl={channel.redirectUrl}
           mainColor={clinic.mainColor}
         />
