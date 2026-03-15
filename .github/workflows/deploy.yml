@@ -29,6 +29,7 @@ jobs:
             git pull origin ${{ github.event.inputs.branch || 'main' }}
             npm install --production=false
             npx prisma db push --accept-data-loss
+            rm -rf .next
             npm run build
             pm2 restart dental-app
             echo "Deployed successfully at $(date)"
