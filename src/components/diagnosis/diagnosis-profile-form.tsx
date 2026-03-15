@@ -187,8 +187,9 @@ export function DiagnosisProfileForm({ channelCode, channelPublicName, diagnosis
           <Stethoscope className="w-8 h-8" style={{ color: mainColor }} />
         </div>
         <CardTitle className="text-xl">{channelPublicName}</CardTitle>
-        <CardDescription>
-          診断を始める前に、簡単なアンケートにご協力ください
+        <CardDescription className="space-y-1">
+          <span>診断を始める前に、簡単なアンケートにご協力ください</span>
+          <span className="block text-xs text-gray-400">※ 個人情報は収集されません</span>
         </CardDescription>
       </CardHeader>
       <CardContent>
