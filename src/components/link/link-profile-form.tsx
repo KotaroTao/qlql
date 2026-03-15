@@ -12,13 +12,12 @@ import Link from "next/link";
 
 interface Props {
   channelId: string;
-  channelName: string;
-  channelDisplayName?: string;
+  channelPublicName: string;
   redirectUrl: string;
   mainColor?: string;
 }
 
-export function LinkProfileForm({ channelId, channelName, channelDisplayName, redirectUrl, mainColor = "#2563eb" }: Props) {
+export function LinkProfileForm({ channelId, channelPublicName, redirectUrl, mainColor = "#2563eb" }: Props) {
   const [age, setAge] = useState("");
   const [gender, setGender] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
@@ -236,7 +235,7 @@ export function LinkProfileForm({ channelId, channelName, channelDisplayName, re
         >
           <Gift className="w-8 h-8" style={{ color: mainColor }} />
         </div>
-        <CardTitle className="text-xl">{channelDisplayName || channelName}</CardTitle>
+        <CardTitle className="text-xl">{channelPublicName}</CardTitle>
         <CardDescription className="space-y-1">
           <span>簡単なアンケートにご協力ください</span>
           <span className="block text-xs text-gray-400">※ 個人情報は収集されません</span>

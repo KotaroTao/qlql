@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { checkSubscription } from "@/lib/subscription";
 import { LinkProfileForm } from "@/components/link/link-profile-form";
 import { ExpiredPage } from "@/components/channel/expired-page";
+import { getChannelPublicName } from "@/lib/channel-display";
 import type { Channel, Clinic } from "@/types/clinic";
 
 interface Props {
@@ -99,8 +100,7 @@ export default async function LinkProfilePage({ params }: Props) {
       <div className="container mx-auto px-4 py-8 max-w-md">
         <LinkProfileForm
           channelId={channel.id}
-          channelName={channel.name}
-          channelDisplayName={channel.displayName ?? undefined}
+          channelPublicName={getChannelPublicName(channel)}
           redirectUrl={channel.redirectUrl}
           mainColor={clinic.mainColor}
         />

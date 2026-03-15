@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { checkSubscription } from "@/lib/subscription";
 import { DiagnosisProfileForm } from "@/components/diagnosis/diagnosis-profile-form";
 import { ExpiredPage } from "@/components/channel/expired-page";
+import { getChannelPublicName } from "@/lib/channel-display";
 import type { Channel, Clinic } from "@/types/clinic";
 
 interface Props {
@@ -99,7 +100,7 @@ export default async function DiagnosisProfilePage({ params }: Props) {
       <div className="container mx-auto px-4 py-8 max-w-md">
         <DiagnosisProfileForm
           channelCode={code}
-          channelName={channel.name}
+          channelPublicName={getChannelPublicName(channel)}
           diagnosisTypeSlug={channel.diagnosisTypeSlug}
           mainColor={clinic.mainColor}
         />

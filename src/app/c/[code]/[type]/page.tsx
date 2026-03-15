@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { checkSubscription } from "@/lib/subscription";
 import type { Channel, Clinic } from "@/types/clinic";
 import { ExpiredPage } from "@/components/channel/expired-page";
+import { getChannelPublicName } from "@/lib/channel-display";
 
 interface Props {
   params: Promise<{
@@ -164,7 +165,7 @@ export default async function ClinicDiagnosisPage({ params }: Props) {
         clinicName={clinic.name}
         mainColor={clinic.mainColor}
         channelId={channel.id}
-        channelDisplayName={(channel as Channel & { displayName?: string | null }).displayName || undefined}
+        channelDisplayName={getChannelPublicName(channel as Channel)}
       />
 
       {/* アクセストラッキング用の非表示コンポーネント */}
