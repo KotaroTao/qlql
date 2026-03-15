@@ -271,7 +271,7 @@ const DIAGNOSIS_TYPE_NAMES: Record<string, string> = {
 
 ```bash
 ssh user@server
-cd /var/www/dental-check
+cd /var/www/qlql
 git fetch origin <branch>
 git merge origin/<branch>
 npm run build
@@ -279,7 +279,7 @@ pm2 restart dental-app
 ```
 
 **注意:**
-- PM2プロセス名は `dental-app`（`dental-check` ではない）
+- PM2プロセス名は `dental-app`（`qlql` ではない）
 - `main` ブランチへの直接pushは403でブロックされる。PRまたはサーバー上でmerge
 - マイグレーションがある場合: `npx prisma db execute --file prisma/migrations/<dir>/migration.sql`
   - `psql $DATABASE_URL` はroot環境では使えない（環境変数未設定）。Prisma経由で実行する
@@ -287,7 +287,7 @@ pm2 restart dental-app
 ### シード実行（本番）
 
 ```bash
-cd /var/www/dental-check
+cd /var/www/qlql
 npx tsx scripts/seed-diagnoses.ts
 ```
 

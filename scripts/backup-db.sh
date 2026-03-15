@@ -34,20 +34,20 @@ if [ "$DUMP_SIZE" -lt 1024 ]; then
 fi
 
 # ---------- 2. アップロード画像バックアップ ----------
-if [ -d /var/www/dental-check/public/uploads ]; then
-  tar czf $TARGET/uploads.tar.gz -C /var/www/dental-check/public uploads 2>/dev/null
+if [ -d /var/www/qlql/public/uploads ]; then
+  tar czf $TARGET/uploads.tar.gz -C /var/www/qlql/public uploads 2>/dev/null
 fi
 
 # ---------- 3. 設定ファイル・Git情報バックアップ ----------
-cp /var/www/dental-check/.env $TARGET/env_backup 2>/dev/null
+cp /var/www/qlql/.env $TARGET/env_backup 2>/dev/null
 
-cd /var/www/dental-check
+cd /var/www/qlql
 git log --oneline -1 > $TARGET/git_commit.txt
 git diff > $TARGET/local_changes.patch 2>/dev/null
 
 mkdir -p $TARGET/server_config
-cp /etc/nginx/sites-available/dental-check $TARGET/server_config/ 2>/dev/null
-cp /etc/nginx/sites-enabled/dental-check $TARGET/server_config/ 2>/dev/null
+cp /etc/nginx/sites-available/qlql $TARGET/server_config/ 2>/dev/null
+cp /etc/nginx/sites-enabled/qlql $TARGET/server_config/ 2>/dev/null
 pm2 save 2>/dev/null && cp ~/.pm2/dump.pm2 $TARGET/server_config/ 2>/dev/null
 cp ~/backup_dental.sh $TARGET/server_config/ 2>/dev/null
 

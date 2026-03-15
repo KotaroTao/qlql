@@ -138,7 +138,7 @@ model Channel {
 
 ```bash
 # 本番環境でのマイグレーション
-docker run --rm --network dental-check_dental-network \
+docker run --rm --network qlql_dental-network \
   -e DATABASE_URL='postgresql://dental_user:PASSWORD@db:5432/dental_check' \
   -v $(pwd)/prisma:/app/prisma -w /app node:20 \
   sh -c "npm install prisma@5.22.0 && npx prisma db push"

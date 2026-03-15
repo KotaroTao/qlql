@@ -34,8 +34,8 @@ git push origin main
 
 **手動デプロイ（緊急時のみ）:**
 ```bash
-ssh -i ~/Downloads/dental-check-key.pem root@210.131.223.161
-cd /var/www/dental-check
+ssh -i ~/Downloads/qlql-key.pem root@210.131.223.161
+cd /var/www/qlql
 git pull origin main
 npm install
 npm run build
@@ -48,12 +48,12 @@ pm2 restart dental-app
 
 ### Windows PowerShell
 ```powershell
-ssh -i $env:USERPROFILE\Downloads\dental-check-key.pem root@210.131.223.161
+ssh -i $env:USERPROFILE\Downloads\qlql-key.pem root@210.131.223.161
 ```
 
 ### Mac/Linux
 ```bash
-ssh -i ~/Downloads/dental-check-key.pem root@210.131.223.161
+ssh -i ~/Downloads/qlql-key.pem root@210.131.223.161
 ```
 
 ---
@@ -61,7 +61,7 @@ ssh -i ~/Downloads/dental-check-key.pem root@210.131.223.161
 ## プロジェクトパス
 
 ```bash
-cd /var/www/dental-check
+cd /var/www/qlql
 ```
 
 ---
@@ -126,7 +126,7 @@ tail -f /var/log/nginx/error.log
 
 ### 設定ファイル
 ```
-/etc/nginx/sites-available/dental-check
+/etc/nginx/sites-available/qlql
 ```
 
 ---
@@ -150,14 +150,14 @@ sudo -u postgres psql -d dental_check
 
 ### マイグレーション実行
 ```bash
-cd /var/www/dental-check
+cd /var/www/qlql
 npx prisma db push
 ```
 
 ### シードデータ投入
 診断タイプなどの初期データをデータベースに投入します。
 ```bash
-cd /var/www/dental-check
+cd /var/www/qlql
 npm install --include=dev   # devDependencies（tsx）をインストール
 npm run db:seed             # シードを実行
 ```
@@ -166,12 +166,12 @@ npm run db:seed             # シードを実行
 
 ### 手動バックアップ
 ```bash
-sudo -u postgres pg_dump dental_check > /var/backups/dental-check/dental_$(date +%Y%m%d_%H%M%S).sql
+sudo -u postgres pg_dump dental_check > /var/backups/qlql/dental_$(date +%Y%m%d_%H%M%S).sql
 ```
 
 ### リストア
 ```bash
-sudo -u postgres psql -d dental_check < /var/backups/dental-check/dental_YYYYMMDD_HHMMSS.sql
+sudo -u postgres psql -d dental_check < /var/backups/qlql/dental_YYYYMMDD_HHMMSS.sql
 ```
 
 ---
@@ -183,13 +183,13 @@ sudo -u postgres psql -d dental_check < /var/backups/dental-check/dental_YYYYMMD
 | 項目 | 値 |
 |------|-----|
 | 実行時刻 | 毎日 午前3時 |
-| 保存場所 | `/var/backups/dental-check/` |
+| 保存場所 | `/var/backups/qlql/` |
 | 保持期間 | 30日間（古いものは自動削除） |
 | ログ | `/var/log/dental-backup.log` |
 
 ### バックアップ確認
 ```bash
-ls -la /var/backups/dental-check/
+ls -la /var/backups/qlql/
 ```
 
 ### バックアップログ確認
@@ -199,12 +199,12 @@ tail -f /var/log/dental-backup.log
 
 ### バックアップスクリプト
 ```
-/var/www/dental-check/scripts/backup-db.sh
+/var/www/qlql/scripts/backup-db.sh
 ```
 
 ### 手動実行
 ```bash
-/var/www/dental-check/scripts/backup-db.sh
+/var/www/qlql/scripts/backup-db.sh
 ```
 
 ---
@@ -272,7 +272,7 @@ certbot certificates
 
 ## 環境変数
 
-`/var/www/dental-check/.env` に設定:
+`/var/www/qlql/.env` に設定:
 
 | 変数名 | 説明 |
 |--------|------|
@@ -338,7 +338,7 @@ pm2 logs dental-app --lines 200
 pm2 status
 
 # 手動で起動テスト
-cd /var/www/dental-check
+cd /var/www/qlql
 npm start
 ```
 
@@ -376,12 +376,12 @@ reboot
 
 ### プロジェクトパス
 ```
-C:\Users\hacha\Documents\dental-check
+C:\Users\hacha\Documents\qlql
 ```
 
 ### 起動方法（コマンドプロンプト）
 ```cmd
-cd C:\Users\hacha\Documents\dental-check
+cd C:\Users\hacha\Documents\qlql
 npm run dev -- -p 3002
 ```
 
@@ -418,7 +418,7 @@ NEXT_PUBLIC_APP_URL="http://localhost:3002"
 
 ### プロジェクトパス
 ```
-/home/user/dental-check
+/home/user/qlql
 ```
 
 ### 起動方法
@@ -432,7 +432,7 @@ npm run dev -- -p 3001
 ## Git ブランチ
 
 - 本番ブランチ: `main`
-- リポジトリ: `https://github.com/KotaroTao/dental-check`
+- リポジトリ: `https://github.com/KotaroTao/qlql`
 
 ### 開発→本番 反映手順
 
