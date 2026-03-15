@@ -15,11 +15,12 @@ import { useDiagnosisStore } from "@/lib/diagnosis-store";
 interface Props {
   channelCode: string;
   channelName: string;
+  channelDisplayName?: string;
   diagnosisTypeSlug: string;
   mainColor?: string;
 }
 
-export function DiagnosisProfileForm({ channelCode, channelName, diagnosisTypeSlug, mainColor = "#2563eb" }: Props) {
+export function DiagnosisProfileForm({ channelCode, channelName, channelDisplayName, diagnosisTypeSlug, mainColor = "#2563eb" }: Props) {
   const router = useRouter();
   const { setProfile, setLocation } = useDiagnosisStore();
 
@@ -186,7 +187,7 @@ export function DiagnosisProfileForm({ channelCode, channelName, diagnosisTypeSl
         >
           <Stethoscope className="w-8 h-8" style={{ color: mainColor }} />
         </div>
-        <CardTitle className="text-xl">{channelName}</CardTitle>
+        <CardTitle className="text-xl">{channelDisplayName || channelName}</CardTitle>
         <CardDescription>
           診断を始める前に、簡単なアンケートにご協力ください
         </CardDescription>

@@ -100,6 +100,7 @@ export default async function DiagnosisProfilePage({ params }: Props) {
         <DiagnosisProfileForm
           channelCode={code}
           channelName={channel.name}
+          channelDisplayName={channel.displayName ?? undefined}
           diagnosisTypeSlug={channel.diagnosisTypeSlug}
           mainColor={clinic.mainColor}
         />
