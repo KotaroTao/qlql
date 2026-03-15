@@ -461,6 +461,7 @@ export async function canTrackSession(clinicId: string): Promise<boolean> {
     where: { clinicId },
     select: {
       status: true,
+      planType: true,
       trialEnd: true,
       currentPeriodEnd: true,
     },
@@ -468,8 +469,7 @@ export async function canTrackSession(clinicId: string): Promise<boolean> {
 
   if (!subscription) return false;
 
-  // planTypeがあればチェック
-  const planType = ((subscription as { planType?: string }).planType as PlanType) || "starter";
+  const planType = (subscription.planType as PlanType) || "starter";
 
   // 無料プランは常に計測可能
   if (planType === "free") return true;
