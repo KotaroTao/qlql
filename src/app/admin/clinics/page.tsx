@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Users, QrCode, CheckCircle, Eye, EyeOff, Trash2, Plus, X, Copy, Send, LogIn, MessageSquare, RotateCcw, AlertTriangle, ArrowUp, ArrowDown } from "lucide-react";
+import { Building2, Users, QrCode, CheckCircle, Eye, EyeOff, Trash2, Plus, X, Copy, Send, LogIn, MessageSquare, RotateCcw, AlertTriangle, ArrowUp, ArrowDown, Link2 } from "lucide-react";
 
 interface Plan {
   type: string;
@@ -66,6 +66,73 @@ export default function AdminClinicsPage() {
   // 送信文面モーダル
   const [messageClinic, setMessageClinic] = useState<Clinic | null>(null);
   const [editableMessage, setEditableMessage] = useState("");
+
+  // SLP連携モーダル
+  const [slpClinicId, setSlpClinicId] = useState<string | null>(null);
+  const [slpToken, setSlpToken] = useState<string | null>(null);
+  const [slpExpiresAt, setSlpExpiresAt] = useState<Date | null>(null);
+  const [slpRemaining, setSlpRemaining] = useState<number>(0);
+  const [slpLoading, setSlpLoading] = useState(false);
+  const [slpError, setSlpError] = useState<string | null>(null);
+  const [slpCopied, setSlpCopied] = useState(false);
+
+  // SLP連携: トークン発行
+  const handleSlpLink = async (clinicId: string) => {
+    setSlpClinicId(clinicId);
+    setSlpToken(null);
+    setSlpError(null);
+    setSlpLoading(true);
+    setSlpCopied(false);
+
+    try {
+      const response = await fetch("/api/integration/issue-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clinicId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSlpToken(data.token);
+        setSlpExpiresAt(new Date(data.expiresAt));
+      } else {
+        const messages: Record<string, string> = {
+          RATE_LIMIT_EXCEEDED: "発行回数の上限に達しました。しばらくお待ちください。",
+          CLINIC_NOT_FOUND: "医院が見つかりません。",
+          UNAUTHORIZED: "管理者認証が必要です。",
+        };
+        setSlpError(messages[data.error] || "エラーが発生しました。");
+      }
+    } catch {
+      setSlpError("通信エラーが発生しました。");
+    } finally {
+      setSlpLoading(false);
+    }
+  };
+
+  const closeSlpModal = () => {
+    setSlpClinicId(null);
+    setSlpToken(null);
+    setSlpExpiresAt(null);
+    setSlpRemaining(0);
+    setSlpError(null);
+    setSlpCopied(false);
+  };
+
+  // SLP連携: カウントダウンタイマー
+  useEffect(() => {
+    if (!slpExpiresAt) return;
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.floor((slpExpiresAt.getTime() - Date.now()) / 1000));
+      setSlpRemaining(remaining);
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [slpExpiresAt]);
 
   const fetchClinics = async () => {
     setIsLoading(true);
@@ -504,6 +571,9 @@ https://qrqr-dental.com/login
                     <Button size="sm" variant="outline" onClick={() => handleToggleHidden(clinic.id, clinic.isHidden)} disabled={isUpdating}>
                       {clinic.isHidden ? <><Eye className="w-3 h-3 mr-1" />表示</> : <><EyeOff className="w-3 h-3 mr-1" />非表示</>}
                     </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleSlpLink(clinic.id)} className="text-purple-600 border-purple-200 hover:bg-purple-50">
+                      <Link2 className="w-3 h-3 mr-1" />SLP連携
+                    </Button>
                     {activeTab === "hidden" && (
                       <Button size="sm" variant="destructive" onClick={() => { setConfirmDelete(clinic.id); setDeletePassword(""); setDeleteError(""); }} disabled={isUpdating}>
                         <Trash2 className="w-3 h-3 mr-1" />削除
@@ -662,6 +732,15 @@ https://qrqr-dental.com/login
                               </>
                             )}
                           </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSlpLink(clinic.id)}
+                            className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                          >
+                            <Link2 className="w-3 h-3 mr-1" />
+                            SLP連携
+                          </Button>
                           {activeTab === "hidden" && (
                             <Button
                               size="sm"
@@ -809,6 +888,96 @@ https://qrqr-dental.com/login
                 title="デフォルト文面に戻す"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SLP連携モーダル */}
+      {slpClinicId && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={closeSlpModal}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Link2 className="w-5 h-5 text-purple-600" />
+                SLP連携トークン
+              </h2>
+              <button
+                onClick={closeSlpModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {slpLoading && (
+              <div className="text-center py-8 text-gray-500">
+                トークンを発行中...
+              </div>
+            )}
+
+            {slpError && (
+              <div className="bg-red-50 text-red-600 rounded-lg p-4 text-sm">
+                {slpError}
+              </div>
+            )}
+
+            {slpToken && (
+              <div className="space-y-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-xs text-gray-500 mb-2">連携トークン（Smile Life側で入力してください）</p>
+                  <div className="font-mono text-sm break-all bg-white border rounded p-3 select-all">
+                    {slpToken}
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full gap-2"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(slpToken);
+                    } catch {
+                      const textarea = document.createElement("textarea");
+                      textarea.value = slpToken;
+                      document.body.appendChild(textarea);
+                      textarea.select();
+                      document.execCommand("copy");
+                      document.body.removeChild(textarea);
+                    }
+                    setSlpCopied(true);
+                    setTimeout(() => setSlpCopied(false), 2000);
+                  }}
+                >
+                  <Copy className="w-4 h-4" />
+                  {slpCopied ? "コピーしました" : "トークンをコピー"}
+                </Button>
+
+                {/* カウントダウンタイマー */}
+                {slpRemaining > 0 ? (
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">有効期限</p>
+                    <p className="text-2xl font-bold text-purple-600 tabular-nums">
+                      {Math.floor(slpRemaining / 60)}:{(slpRemaining % 60).toString().padStart(2, "0")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-orange-50 text-orange-700 rounded-lg p-3 text-sm text-center">
+                    有効期限切れ。再発行するにはもう一度ボタンを押してください。
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-4 flex justify-end">
+              <Button variant="outline" onClick={closeSlpModal}>
+                閉じる
               </Button>
             </div>
           </div>

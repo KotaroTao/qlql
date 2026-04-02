@@ -38,7 +38,8 @@ model Clinic {
   accessLogs        AccessLog[]
   ctaClicks         CTAClick[]
   channels          Channel[]
-  invitationTokens  InvitationToken[]
+  invitationTokens       InvitationToken[]
+  slpIntegrationTokens   SlpIntegrationToken[]
 
   @@map("clinics")
 }
@@ -232,6 +233,22 @@ model InvitationToken {
 
   @@index([token])
   @@map("invitation_tokens")
+}
+
+// SLP連携用ワンタイムトークン（Smile Life Projectとの連携に使用）
+model SlpIntegrationToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  clinicId  String    @map("clinic_id")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")  // nullなら未使用・値があれば使用済み
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([clinicId])
+  @@map("slp_integration_tokens")
 }
 
 // 管理者

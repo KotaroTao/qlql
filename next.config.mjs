@@ -25,10 +25,14 @@ const nextConfig = {
   },
 
   // セキュリティヘッダー
+  // SLP連携: /shared/* はSLPドメインからのiframe表示を許可、それ以外は従来通りブロック
   async headers() {
+    const SLP_DOMAIN = process.env.SLP_DOMAIN || 'https://smile-life-project.com';
+
     return [
       {
-        source: '/:path*',
+        // /shared/* 以外：既存のセキュリティヘッダーをそのまま維持
+        source: '/((?!shared).*)',
         headers: [
           {
             key: 'X-Frame-Options',
@@ -43,17 +47,44 @@ const nextConfig = {
             value: 'strict-origin-when-cross-origin',
           },
           {
-            // C6: HSTS - ブラウザに「常にHTTPSで接続して」と伝えるヘッダー
-            // max-age=1年, サブドメインも含む
             key: 'Strict-Transport-Security',
             value: 'max-age=31536000; includeSubDomains',
           },
           {
-            // C6: 不要なブラウザ機能を無効化（プライバシー保護）
-            // camera/microphone等はこのアプリでは不要
-            // geolocation=selfは診断の位置情報取得で必要
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), usb=(), geolocation=(self)',
+          },
+        ],
+      },
+      {
+        // /shared/* のみ：SLPからのiframe埋め込みを許可
+        source: '/shared/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: `frame-ancestors 'self' ${SLP_DOMAIN}`,
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+        ],
+      },
+      {
+        // /api/integration/* のみ：SLPからのCORSを許可
+        source: '/api/integration/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: SLP_DOMAIN,
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'POST, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type',
           },
         ],
       },
