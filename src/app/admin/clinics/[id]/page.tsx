@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, useRef, use } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,9 @@ import {
   CheckCircle,
   XCircle,
   Copy,
+  Phone,
+  MessageCircle,
+  ChevronDown,
 } from "lucide-react";
 
 interface ClinicStats {
@@ -104,6 +107,10 @@ export default function AdminClinicDetailPage({
   const [systemDiagnosisTypes, setSystemDiagnosisTypes] = useState<DiagnosisType[]>([]);
   const [clinicDiagnosisTypes, setClinicDiagnosisTypes] = useState<DiagnosisType[]>([]);
 
+  // 連絡ツールドロップダウン
+  const [showContactTools, setShowContactTools] = useState(false);
+  const contactToolsRef = useRef<HTMLDivElement>(null);
+
   const loadTabData = async () => {
     setIsLoading(true);
     try {
@@ -170,6 +177,23 @@ export default function AdminClinicDetailPage({
     loadTabData();
   }, [activeTab, clinicId, period]);
 
+  // 初回読み込み時にsettingsも取得（連絡ツール表示用）
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!settings) loadSettings();
+  }, [clinicId]);
+
+  // 連絡ツールドロップダウン外クリックで閉じる
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contactToolsRef.current && !contactToolsRef.current.contains(e.target as Node)) {
+        setShowContactTools(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const handleToggleDiagnosis = async (diagnosisTypeId: string, currentEnabled: boolean) => {
     setIsUpdating(true);
     setMessage(null);
@@ -206,6 +230,37 @@ export default function AdminClinicDetailPage({
     return `https://qrqr-dental.com/q/${code}`;
   };
 
+  // ctaConfigから連絡ツール一覧を生成
+  const getContactTools = () => {
+    if (!settings?.ctaConfig) return [];
+    const cta = settings.ctaConfig as Record<string, unknown>;
+    const tools: { label: string; url: string; type: string }[] = [];
+
+    if (cta.phone) tools.push({ label: `電話: ${cta.phone}`, url: `tel:${cta.phone}`, type: "phone" });
+    if (cta.lineUrl) tools.push({ label: "LINE", url: cta.lineUrl as string, type: "line" });
+    if (cta.bookingUrl) tools.push({ label: "予約ページ", url: cta.bookingUrl as string, type: "booking" });
+    if (cta.clinicHomepageUrl) tools.push({ label: "ホームページ", url: cta.clinicHomepageUrl as string, type: "homepage" });
+    if (cta.googleMapsUrl) tools.push({ label: "Googleマップ", url: cta.googleMapsUrl as string, type: "maps" });
+    if (cta.instagramUrl) tools.push({ label: "Instagram", url: cta.instagramUrl as string, type: "instagram" });
+    if (cta.youtubeUrl) tools.push({ label: "YouTube", url: cta.youtubeUrl as string, type: "youtube" });
+    if (cta.facebookUrl) tools.push({ label: "Facebook", url: cta.facebookUrl as string, type: "facebook" });
+    if (cta.tiktokUrl) tools.push({ label: "TikTok", url: cta.tiktokUrl as string, type: "tiktok" });
+    if (cta.threadsUrl) tools.push({ label: "Threads", url: cta.threadsUrl as string, type: "threads" });
+    if (cta.xUrl) tools.push({ label: "X (Twitter)", url: cta.xUrl as string, type: "x" });
+
+    // カスタムCTA
+    const customCTAs = cta.customCTAs as Array<{ label: string; url: string }> | undefined;
+    if (customCTAs) {
+      customCTAs.forEach((c) => {
+        if (c.url) tools.push({ label: c.label || "カスタム", url: c.url, type: "custom" });
+      });
+    }
+
+    return tools;
+  };
+
+  const contactTools = getContactTools();
+
   const tabs = [
     { id: "dashboard", label: "ダッシュボード", icon: BarChart3 },
     { id: "channels", label: "QRコード", icon: QrCode },
@@ -216,7 +271,7 @@ export default function AdminClinicDetailPage({
   return (
     <div>
       {/* ヘッダー */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-6 flex-wrap">
         <Link href="/admin/clinics">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -224,6 +279,60 @@ export default function AdminClinicDetailPage({
           </Button>
         </Link>
         <h1 className="text-2xl font-bold">{clinicName || "医院詳細"}</h1>
+
+        <div className="flex items-center gap-2 ml-auto">
+          {/* 連絡ツールボタン */}
+          {contactTools.length > 0 && (
+            <div className="relative" ref={contactToolsRef}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowContactTools(!showContactTools)}
+                className="text-green-600 border-green-200 hover:bg-green-50 gap-1"
+              >
+                <MessageCircle className="w-4 h-4" />
+                連絡ツール
+                <ChevronDown className={`w-3 h-3 transition-transform ${showContactTools ? "rotate-180" : ""}`} />
+              </Button>
+
+              {showContactTools && (
+                <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border z-50 py-1">
+                  {contactTools.map((tool, i) => (
+                    <a
+                      key={i}
+                      href={tool.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 text-gray-700"
+                      onClick={() => setShowContactTools(false)}
+                    >
+                      {tool.type === "phone" ? (
+                        <Phone className="w-4 h-4 text-gray-400" />
+                      ) : (
+                        <ExternalLink className="w-4 h-4 text-gray-400" />
+                      )}
+                      {tool.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 医院ページ表示 */}
+          {settings?.slug && (
+            <a
+              href={`https://qrqr-dental.com/${settings.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button variant="outline" size="sm" className="gap-1">
+                <ExternalLink className="w-4 h-4" />
+                医院ページ
+              </Button>
+            </a>
+          )}
+        </div>
       </div>
 
       {/* メッセージ */}
