@@ -164,6 +164,9 @@ export async function POST(request: NextRequest) {
     const selectedPlan: PlanType = validPlans.includes(planType) ? planType : "starter";
     const isFreePlan = selectedPlan === "free" || selectedPlan === "demo";
 
+    // share_token を生成（SLP連携やダッシュボード共有で使うトークン）
+    const shareToken = crypto.randomBytes(32).toString("base64url");
+
     // 医院を作成
     const clinic = await prisma.clinic.create({
       data: {
@@ -173,6 +176,7 @@ export async function POST(request: NextRequest) {
         phone: phone || null,
         slug,
         status: "pending",
+        shareToken,
       },
     });
 
