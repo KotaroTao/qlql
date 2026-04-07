@@ -102,6 +102,7 @@ export default function DashboardLayout({
     { href: "/dashboard", label: "ダッシュボード" },
     { href: "/dashboard/channels/new", label: "QRコード作成" },
     { href: "/dashboard/diagnoses", label: "診断管理" },
+    { href: "/dashboard/meetings", label: "議事録" },
     { href: "/dashboard/settings", label: "設定" },
     { href: "/dashboard/billing", label: "契約・お支払い" },
   ];

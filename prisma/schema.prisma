@@ -28,6 +28,7 @@ model Clinic {
   isHidden              Boolean  @default(false) @map("is_hidden") // 管理者パネルで非表示
   excludeFromAnalysis   Boolean  @default(false) @map("exclude_from_analysis") // チラシ分析から除外
   shareToken            String?  @unique @map("share_token") // ダッシュボード共有用トークン（nullなら共有OFF）
+  napInfo               Json     @default("{}") @map("nap_info") // 正式NAP情報 {officialName, postalCode, prefecture, city, address, building, phone, fax, url}
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -40,6 +41,9 @@ model Clinic {
   channels          Channel[]
   invitationTokens       InvitationToken[]
   slpIntegrationTokens   SlpIntegrationToken[]
+  clinicTasks            ClinicTask[]
+  napPlatforms           NapPlatform[]
+  meetingMinutes         MeetingMinutes[]
 
   @@map("clinics")
 }
@@ -249,6 +253,79 @@ model SlpIntegrationToken {
   @@index([token])
   @@index([clinicId])
   @@map("slp_integration_tokens")
+}
+
+// 対応依頼（医院への作業依頼を管理）
+model ClinicTask {
+  id          String    @id @default(uuid())
+  clinicId    String    @map("clinic_id")
+  taskType    String    @map("task_type")    // "hp_name_change" | "gbp_name_change" | "nap_unification" | "other"
+  title       String                          // 表示用タイトル（例: "ホームページの医院名変更"）
+  description String?                         // 詳細説明
+  status      String    @default("pending")  // "pending"(未依頼) | "requested"(依頼済) | "in_progress"(対応中) | "completed"(完了)
+  priority    Int       @default(0)          // 並び順（小さいほど先に表示）
+  note        String?                         // 管理者用メモ
+  requestedAt DateTime? @map("requested_at") // 依頼した日時
+  completedAt DateTime? @map("completed_at") // 完了した日時
+  reminderCount Int     @default(0) @map("reminder_count") // 催促した回数
+  lastRemindedAt DateTime? @map("last_reminded_at") // 最終催促日時
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@index([clinicId, status])
+  @@map("clinic_tasks")
+}
+
+// NAP統一管理（媒体別）
+model NapPlatform {
+  id              String    @id @default(uuid())
+  clinicId        String    @map("clinic_id")
+  platformName    String    @map("platform_name")     // 媒体名（例: "Googleビジネスプロフィール"）
+  platformUrl     String?   @map("platform_url")      // 掲載ページのURL
+  nameStatus      String    @default("unchecked") @map("name_status")     // "unchecked" | "match" | "mismatch"
+  addressStatus   String    @default("unchecked") @map("address_status")  // "unchecked" | "match" | "mismatch"
+  phoneStatus     String    @default("unchecked") @map("phone_status")    // "unchecked" | "match" | "mismatch"
+  status          String    @default("unchecked")     // "unchecked"(未確認) | "ok"(問題なし) | "requested"(修正依頼済) | "completed"(修正完了)
+  note            String?                              // メモ（ログインID等）
+  requestedAt     DateTime? @map("requested_at")      // 修正依頼した日時
+  completedAt     DateTime? @map("completed_at")      // 修正完了した日時
+  reminderCount   Int       @default(0) @map("reminder_count")
+  lastRemindedAt  DateTime? @map("last_reminded_at")
+  priority        Int       @default(0)               // 表示順
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@map("nap_platforms")
+}
+
+// 議事録（ミーティング記録）
+model MeetingMinutes {
+  id              String    @id @default(uuid())
+  clinicId        String    @map("clinic_id")
+  meetingDate     DateTime  @map("meeting_date")       // ミーティング日時
+  title           String                                // タイトル（例: "第3回定期ミーティング"）
+  content         String?   @db.Text                    // 議事録本文（Markdown対応）
+  summary         String?                               // 要約
+  ourStaff        String?   @map("our_staff")           // 弊社担当者名
+  clinicAttendees String?   @map("clinic_attendees")    // 医院側出席者名
+  zoomUrl         String?   @map("zoom_url")            // ZoomミーティングURL
+  recordingUrl    String?   @map("recording_url")       // 録画URL（Circleback等）
+  nextActions     String?   @map("next_actions") @db.Text // 次回アクション項目
+  isVisibleToClinic Boolean @default(true) @map("is_visible_to_clinic") // 医院側に表示するか
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@index([clinicId, meetingDate])
+  @@map("meeting_minutes")
 }
 
 // 管理者
