@@ -18,8 +18,10 @@ import {
   XCircle,
   Copy,
   ClipboardList,
+  BookOpen,
 } from "lucide-react";
 import NapManagement from "@/components/admin/nap-management";
+import MeetingMinutesAdmin from "@/components/admin/meeting-minutes";
 
 interface ClinicStats {
   accessCount: number;
@@ -78,7 +80,7 @@ interface DiagnosisType {
   isSystem?: boolean;
 }
 
-type TabType = "dashboard" | "channels" | "settings" | "diagnosis" | "nap";
+type TabType = "dashboard" | "channels" | "settings" | "diagnosis" | "nap" | "meetings";
 
 export default function AdminClinicDetailPage({
   params,
@@ -123,7 +125,8 @@ export default function AdminClinicDetailPage({
           await loadDiagnosisTypes();
           break;
         case "nap":
-          // NapManagementコンポーネントが自身でデータを読み込む
+        case "meetings":
+          // コンポーネントが自身でデータを読み込む
           break;
       }
     } catch (error) {
@@ -217,6 +220,7 @@ export default function AdminClinicDetailPage({
     { id: "settings", label: "設定", icon: Settings },
     { id: "diagnosis", label: "診断タイプ", icon: FileText },
     { id: "nap", label: "NAP", icon: ClipboardList },
+    { id: "meetings", label: "議事録", icon: BookOpen },
   ];
 
   return (
@@ -685,6 +689,17 @@ export default function AdminClinicDetailPage({
           {/* NAPタブ */}
           {activeTab === "nap" && (
             <NapManagement
+              clinicId={clinicId}
+              onMessage={(msg) => {
+                setMessage(msg);
+                if (msg.type === "success") setTimeout(() => setMessage(null), 3000);
+              }}
+            />
+          )}
+
+          {/* 議事録タブ */}
+          {activeTab === "meetings" && (
+            <MeetingMinutesAdmin
               clinicId={clinicId}
               onMessage={(msg) => {
                 setMessage(msg);

@@ -43,6 +43,7 @@ model Clinic {
   slpIntegrationTokens   SlpIntegrationToken[]
   clinicTasks            ClinicTask[]
   napPlatforms           NapPlatform[]
+  meetingMinutes         MeetingMinutes[]
 
   @@map("clinics")
 }
@@ -301,6 +302,30 @@ model NapPlatform {
 
   @@index([clinicId])
   @@map("nap_platforms")
+}
+
+// 議事録（ミーティング記録）
+model MeetingMinutes {
+  id              String    @id @default(uuid())
+  clinicId        String    @map("clinic_id")
+  meetingDate     DateTime  @map("meeting_date")       // ミーティング日時
+  title           String                                // タイトル（例: "第3回定期ミーティング"）
+  content         String?   @db.Text                    // 議事録本文（Markdown対応）
+  summary         String?                               // 要約
+  ourStaff        String?   @map("our_staff")           // 弊社担当者名
+  clinicAttendees String?   @map("clinic_attendees")    // 医院側出席者名
+  zoomUrl         String?   @map("zoom_url")            // ZoomミーティングURL
+  recordingUrl    String?   @map("recording_url")       // 録画URL（Circleback等）
+  nextActions     String?   @map("next_actions") @db.Text // 次回アクション項目
+  isVisibleToClinic Boolean @default(true) @map("is_visible_to_clinic") // 医院側に表示するか
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@index([clinicId, meetingDate])
+  @@map("meeting_minutes")
 }
 
 // 管理者
