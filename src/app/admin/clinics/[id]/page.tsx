@@ -17,6 +17,15 @@ import {
   CheckCircle,
   XCircle,
   Copy,
+  ClipboardList,
+  Plus,
+  Trash2,
+  Send,
+  Bell,
+  Heart,
+  MessageSquare,
+  ChevronUp,
+  Pencil,
 } from "lucide-react";
 
 interface ClinicStats {
@@ -76,7 +85,22 @@ interface DiagnosisType {
   isSystem?: boolean;
 }
 
-type TabType = "dashboard" | "channels" | "settings" | "diagnosis";
+interface ClinicTask {
+  id: string;
+  taskType: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: number;
+  note: string | null;
+  requestedAt: string | null;
+  completedAt: string | null;
+  reminderCount: number;
+  lastRemindedAt: string | null;
+  createdAt: string;
+}
+
+type TabType = "dashboard" | "channels" | "settings" | "diagnosis" | "tasks";
 
 export default function AdminClinicDetailPage({
   params,
@@ -104,6 +128,17 @@ export default function AdminClinicDetailPage({
   const [systemDiagnosisTypes, setSystemDiagnosisTypes] = useState<DiagnosisType[]>([]);
   const [clinicDiagnosisTypes, setClinicDiagnosisTypes] = useState<DiagnosisType[]>([]);
 
+  // Tasks state（対応依頼）
+  const [tasks, setTasks] = useState<ClinicTask[]>([]);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [generatedMessage, setGeneratedMessage] = useState<string>("");
+  const [messageType, setMessageType] = useState<string>("request");
+  const [isGeneratingMessage, setIsGeneratingMessage] = useState(false);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTask, setNewTask] = useState({ taskType: "other", title: "", description: "" });
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNote, setEditingNote] = useState("");
+
   const loadTabData = async () => {
     setIsLoading(true);
     try {
@@ -119,6 +154,9 @@ export default function AdminClinicDetailPage({
           break;
         case "diagnosis":
           await loadDiagnosisTypes();
+          break;
+        case "tasks":
+          await loadTasks();
           break;
       }
     } catch (error) {
@@ -206,11 +244,172 @@ export default function AdminClinicDetailPage({
     return `https://qrqr-dental.com/q/${code}`;
   };
 
+  // --- 対応依頼の関数群 ---
+  const loadTasks = async () => {
+    const response = await fetch(`/api/admin/clinics/${clinicId}/tasks`);
+    if (response.ok) {
+      const data = await response.json();
+      setClinicName(data.clinicName);
+      setTasks(data.tasks);
+    }
+  };
+
+  const createDefaultTasks = async () => {
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`/api/admin/clinics/${clinicId}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ createDefaults: true }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessage({ type: "success", text: data.message });
+        loadTasks();
+      } else {
+        const data = await res.json();
+        setMessage({ type: "error", text: data.error });
+      }
+    } catch {
+      setMessage({ type: "error", text: "通信エラーが発生しました" });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const addCustomTask = async () => {
+    if (!newTask.title.trim()) {
+      setMessage({ type: "error", text: "タイトルを入力してください" });
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`/api/admin/clinics/${clinicId}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newTask),
+      });
+      if (res.ok) {
+        setMessage({ type: "success", text: "タスクを追加しました" });
+        setNewTask({ taskType: "other", title: "", description: "" });
+        setShowAddTask(false);
+        loadTasks();
+      }
+    } catch {
+      setMessage({ type: "error", text: "通信エラーが発生しました" });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const updateTaskStatus = async (taskId: string, status: string) => {
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`/api/admin/clinics/${clinicId}/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        loadTasks();
+      }
+    } catch {
+      setMessage({ type: "error", text: "通信エラーが発生しました" });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const saveNote = async (taskId: string) => {
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`/api/admin/clinics/${clinicId}/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: editingNote }),
+      });
+      if (res.ok) {
+        setEditingNoteId(null);
+        loadTasks();
+      }
+    } catch {
+      setMessage({ type: "error", text: "通信エラーが発生しました" });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    if (!confirm("このタスクを削除しますか？")) return;
+    try {
+      const res = await fetch(`/api/admin/clinics/${clinicId}/tasks/${taskId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setMessage({ type: "success", text: "タスクを削除しました" });
+        loadTasks();
+      }
+    } catch {
+      setMessage({ type: "error", text: "通信エラーが発生しました" });
+    }
+  };
+
+  const generateMessageForTask = async (taskId: string, type: string) => {
+    setIsGeneratingMessage(true);
+    setMessageType(type);
+    try {
+      const res = await fetch(`/api/admin/clinics/${clinicId}/tasks/${taskId}/message?type=${type}`);
+      if (res.ok) {
+        const data = await res.json();
+        setGeneratedMessage(data.message);
+        setExpandedTaskId(taskId);
+      }
+    } catch {
+      setMessage({ type: "error", text: "メッセージ生成に失敗しました" });
+    } finally {
+      setIsGeneratingMessage(false);
+    }
+  };
+
+  const recordReminder = async (taskId: string) => {
+    await fetch(`/api/admin/clinics/${clinicId}/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reminded: true }),
+    });
+    loadTasks();
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return { label: "未依頼", className: "bg-gray-100 text-gray-700" };
+      case "requested":
+        return { label: "依頼済", className: "bg-yellow-100 text-yellow-700" };
+      case "in_progress":
+        return { label: "対応中", className: "bg-blue-100 text-blue-700" };
+      case "completed":
+        return { label: "完了", className: "bg-green-100 text-green-700" };
+      default:
+        return { label: status, className: "bg-gray-100 text-gray-700" };
+    }
+  };
+
+  const getTaskTypeLabel = (taskType: string) => {
+    switch (taskType) {
+      case "hp_name_change": return "HP医院名変更";
+      case "gbp_name_change": return "GBP医院名変更";
+      case "nap_unification": return "NAP統一";
+      default: return "その他";
+    }
+  };
+
   const tabs = [
     { id: "dashboard", label: "ダッシュボード", icon: BarChart3 },
     { id: "channels", label: "QRコード", icon: QrCode },
     { id: "settings", label: "設定", icon: Settings },
     { id: "diagnosis", label: "診断タイプ", icon: FileText },
+    { id: "tasks", label: "対応依頼", icon: ClipboardList },
   ];
 
   return (
@@ -673,6 +872,323 @@ export default function AdminClinicDetailPage({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* 対応依頼タブ */}
+          {activeTab === "tasks" && (
+            <div className="space-y-6">
+              {/* アクションボタン */}
+              <div className="flex gap-3 flex-wrap">
+                <Button
+                  onClick={createDefaultTasks}
+                  disabled={isUpdating}
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  デフォルトタスクを作成
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddTask(!showAddTask)}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  カスタムタスクを追加
+                </Button>
+              </div>
+
+              {/* カスタムタスク追加フォーム */}
+              {showAddTask && (
+                <div className="bg-white rounded-xl shadow-sm border p-4 space-y-3">
+                  <h3 className="font-bold text-sm">カスタムタスクを追加</h3>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">タスク種別</label>
+                      <select
+                        value={newTask.taskType}
+                        onChange={(e) => setNewTask({ ...newTask, taskType: e.target.value })}
+                        className="w-full border rounded px-3 py-2 text-sm"
+                      >
+                        <option value="hp_name_change">HP医院名変更</option>
+                        <option value="gbp_name_change">GBP医院名変更</option>
+                        <option value="nap_unification">NAP統一</option>
+                        <option value="other">その他</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">タイトル</label>
+                      <input
+                        type="text"
+                        value={newTask.title}
+                        onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                        placeholder="例: EPARKの医院名変更"
+                        className="w-full border rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">説明（任意）</label>
+                    <textarea
+                      value={newTask.description}
+                      onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                      className="w-full border rounded px-3 py-2 text-sm"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={addCustomTask} disabled={isUpdating}>
+                      追加
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setShowAddTask(false)}>
+                      キャンセル
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* タスク一覧 */}
+              {tasks.length === 0 ? (
+                <div className="bg-white rounded-xl shadow-sm border p-8 text-center text-gray-500">
+                  対応依頼タスクがありません。「デフォルトタスクを作成」ボタンで一括作成できます。
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tasks.map((task) => {
+                    const badge = getStatusBadge(task.status);
+                    const isExpanded = expandedTaskId === task.id;
+                    return (
+                      <div key={task.id} className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                        {/* タスクヘッダー */}
+                        <div className="p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${badge.className}`}>
+                                  {badge.label}
+                                </span>
+                                <span className="px-2 py-0.5 rounded text-xs bg-gray-50 text-gray-500">
+                                  {getTaskTypeLabel(task.taskType)}
+                                </span>
+                                {task.reminderCount > 0 && (
+                                  <span className="px-2 py-0.5 rounded text-xs bg-orange-50 text-orange-600">
+                                    催促 {task.reminderCount}回
+                                  </span>
+                                )}
+                              </div>
+                              <h3 className="font-bold">{task.title}</h3>
+                              {task.description && (
+                                <p className="text-sm text-gray-500 mt-1">{task.description}</p>
+                              )}
+                              <div className="flex gap-4 mt-2 text-xs text-gray-400 flex-wrap">
+                                {task.requestedAt && (
+                                  <span>依頼日: {new Date(task.requestedAt).toLocaleDateString("ja-JP")}</span>
+                                )}
+                                {task.completedAt && (
+                                  <span>完了日: {new Date(task.completedAt).toLocaleDateString("ja-JP")}</span>
+                                )}
+                                {task.lastRemindedAt && (
+                                  <span>最終催促: {new Date(task.lastRemindedAt).toLocaleDateString("ja-JP")}</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* ステータス変更 */}
+                            <div className="flex-shrink-0">
+                              <select
+                                value={task.status}
+                                onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                                disabled={isUpdating}
+                                className="border rounded px-2 py-1 text-sm"
+                              >
+                                <option value="pending">未依頼</option>
+                                <option value="requested">依頼済</option>
+                                <option value="in_progress">対応中</option>
+                                <option value="completed">完了</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* メモ表示・編集 */}
+                          <div className="mt-3">
+                            {editingNoteId === task.id ? (
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editingNote}
+                                  onChange={(e) => setEditingNote(e.target.value)}
+                                  placeholder="メモを入力..."
+                                  className="flex-1 border rounded px-2 py-1 text-sm"
+                                />
+                                <Button size="sm" onClick={() => saveNote(task.id)} disabled={isUpdating}>
+                                  保存
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setEditingNoteId(null)}>
+                                  取消
+                                </Button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setEditingNoteId(task.id);
+                                  setEditingNote(task.note || "");
+                                }}
+                                className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600"
+                              >
+                                <Pencil className="w-3 h-3" />
+                                {task.note ? (
+                                  <span className="text-gray-600">{task.note}</span>
+                                ) : (
+                                  <span>メモを追加</span>
+                                )}
+                              </button>
+                            )}
+                          </div>
+
+                          {/* アクションボタン */}
+                          <div className="flex items-center gap-2 mt-3 pt-3 border-t flex-wrap">
+                            <button
+                              onClick={() => {
+                                if (isExpanded && messageType === "request") {
+                                  setExpandedTaskId(null);
+                                } else {
+                                  generateMessageForTask(task.id, "request");
+                                }
+                              }}
+                              disabled={isGeneratingMessage}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                            >
+                              <Send className="w-3 h-3" />
+                              依頼メッセージ
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (isExpanded && messageType === "reminder") {
+                                  setExpandedTaskId(null);
+                                } else {
+                                  generateMessageForTask(task.id, "reminder");
+                                }
+                              }}
+                              disabled={isGeneratingMessage}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors"
+                            >
+                              <Bell className="w-3 h-3" />
+                              催促メッセージ
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (isExpanded && messageType === "thanks") {
+                                  setExpandedTaskId(null);
+                                } else {
+                                  generateMessageForTask(task.id, "thanks");
+                                }
+                              }}
+                              disabled={isGeneratingMessage}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                            >
+                              <Heart className="w-3 h-3" />
+                              お礼メッセージ
+                            </button>
+
+                            <div className="flex-1" />
+
+                            <button
+                              onClick={() => deleteTask(task.id)}
+                              className="flex items-center gap-1 px-2 py-1.5 rounded text-xs text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              削除
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* メッセージ表示エリア */}
+                        {isExpanded && generatedMessage && (
+                          <div className="border-t bg-gray-50 p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <MessageSquare className="w-4 h-4 text-gray-500" />
+                                <span className="text-sm font-medium text-gray-700">
+                                  {messageType === "request" && "依頼メッセージ"}
+                                  {messageType === "reminder" && "催促メッセージ"}
+                                  {messageType === "thanks" && "お礼メッセージ"}
+                                </span>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(generatedMessage);
+                                    setMessage({ type: "success", text: "メッセージをコピーしました" });
+                                    setTimeout(() => setMessage(null), 2000);
+                                    // 催促の場合、カウントを記録
+                                    if (messageType === "reminder") {
+                                      recordReminder(task.id);
+                                    }
+                                    // 依頼の場合、ステータスを「依頼済」に更新
+                                    if (messageType === "request" && task.status === "pending") {
+                                      updateTaskStatus(task.id, "requested");
+                                    }
+                                    // お礼の場合、ステータスを「完了」に更新
+                                    if (messageType === "thanks" && task.status !== "completed") {
+                                      updateTaskStatus(task.id, "completed");
+                                    }
+                                  }}
+                                  className="flex items-center gap-1 px-3 py-1 rounded text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                  コピー
+                                </button>
+                                <button
+                                  onClick={() => setExpandedTaskId(null)}
+                                  className="text-gray-400 hover:text-gray-600"
+                                >
+                                  <ChevronUp className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                            <pre className="whitespace-pre-wrap text-sm text-gray-700 bg-white rounded border p-3 max-h-80 overflow-y-auto">
+                              {generatedMessage}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 進捗サマリー */}
+              {tasks.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border p-4">
+                  <h3 className="font-bold mb-3 text-sm">進捗サマリー</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="text-center p-3 rounded-lg bg-gray-50">
+                      <div className="text-2xl font-bold text-gray-600">
+                        {tasks.filter((t) => t.status === "pending").length}
+                      </div>
+                      <div className="text-xs text-gray-500">未依頼</div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-yellow-50">
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {tasks.filter((t) => t.status === "requested").length}
+                      </div>
+                      <div className="text-xs text-gray-500">依頼済</div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-blue-50">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {tasks.filter((t) => t.status === "in_progress").length}
+                      </div>
+                      <div className="text-xs text-gray-500">対応中</div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-green-50">
+                      <div className="text-2xl font-bold text-green-600">
+                        {tasks.filter((t) => t.status === "completed").length}
+                      </div>
+                      <div className="text-xs text-gray-500">完了</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>
