@@ -24,7 +24,8 @@ export async function GET(
       return NextResponse.json({ error: "無効なURLです" }, { status: 404 });
     }
 
-    if (invitation.usedAt) {
+    // パスワードリセットは1回限り、招待URLは何度でも使える
+    if (invitation.usedAt && invitation.type === "password_reset") {
       return NextResponse.json({ error: "このURLは既に使用済みです" }, { status: 400 });
     }
 
@@ -83,7 +84,8 @@ export async function POST(
       return NextResponse.json({ error: "無効なURLです" }, { status: 404 });
     }
 
-    if (invitation.usedAt) {
+    // パスワードリセットは1回限り、招待URLは何度でも使える
+    if (invitation.usedAt && invitation.type === "password_reset") {
       return NextResponse.json({ error: "このURLは既に使用済みです" }, { status: 400 });
     }
 
@@ -119,7 +121,8 @@ export async function POST(
     // パスワードをハッシュ化して更新
     const passwordHash = await hashPassword(password);
 
-    await prisma.$transaction([
+    // 招待URLは何度でも使えるようにするため、パスワードリセットのみ使用済みにする
+    const dbOperations = [
       // パスワードを設定 & ステータス・メールを更新
       prisma.clinic.update({
         where: { id: invitation.clinic.id },
@@ -129,12 +132,19 @@ export async function POST(
           ...(invitation.clinic.status === "pending" ? { status: "active" } : {}),
         },
       }),
-      // トークンを使用済みにする
-      prisma.invitationToken.update({
-        where: { id: invitation.id },
-        data: { usedAt: new Date() },
-      }),
-    ]);
+    ];
+
+    // パスワードリセットの場合のみトークンを使用済みにする
+    if (invitation.type === "password_reset") {
+      dbOperations.push(
+        prisma.invitationToken.update({
+          where: { id: invitation.id },
+          data: { usedAt: new Date() },
+        }),
+      );
+    }
+
+    await prisma.$transaction(dbOperations);
 
     // 自動ログイン用トークンを発行
     const authToken = await createToken({
