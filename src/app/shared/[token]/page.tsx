@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import {
   BarChart3,
@@ -104,6 +104,7 @@ export default function SharedDashboardPage() {
   const [period, setPeriod] = useState("all");
   const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
   const [showChannelFilter, setShowChannelFilter] = useState(false);
+  const channelFilterRef = useRef<HTMLDivElement>(null);
 
   // 履歴
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -205,6 +206,18 @@ export default function SharedDashboardPage() {
     }
   }, [channels, isInitialized]);
 
+  // ドロップダウン外クリックで閉じる
+  useEffect(() => {
+    if (!showChannelFilter) return;
+    const handleClick = (e: MouseEvent) => {
+      if (channelFilterRef.current && !channelFilterRef.current.contains(e.target as Node)) {
+        setShowChannelFilter(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showChannelFilter]);
+
   const toggleChannel = (channelId: string) => {
     setSelectedChannelIds((prev) =>
       prev.includes(channelId)
@@ -289,7 +302,7 @@ export default function SharedDashboardPage() {
           </div>
 
           {channels.length > 1 && (
-            <div className="relative sm:ml-auto">
+            <div className="relative sm:ml-auto" ref={channelFilterRef}>
               <button
                 onClick={() => setShowChannelFilter(!showChannelFilter)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-white border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
@@ -321,7 +334,7 @@ export default function SharedDashboardPage() {
                           checked={selectedChannelIds.includes(ch.id)}
                           onChange={() => toggleChannel(ch.id)}
                           className="rounded border-gray-300"
-                          style={{ accentColor }}
+                          style={{ accentColor: accentColor }}
                         />
                         <span className="text-sm text-gray-700 truncate">{ch.name}</span>
                         <span className="text-xs text-gray-400 ml-auto">
@@ -384,7 +397,7 @@ export default function SharedDashboardPage() {
               </span>
             </div>
             {(() => {
-              const maxVal = Math.max(...dailyTrend.map((d) => d.accessCount), 1);
+              const maxVal = Math.max(...dailyTrend.flatMap((d) => [d.accessCount, d.ctaCount]), 1);
               return (
                 <div className="flex items-end gap-px h-32 overflow-x-auto">
                   {dailyTrend.map((d) => {

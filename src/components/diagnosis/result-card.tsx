@@ -212,41 +212,46 @@ function ClinicCTA({
     : {};
 
   // CTA計測（sessionId完了待ち + sendBeaconフォールバック付き）
-  const trackClick = async (ctaType: string) => {
+  const trackClick = (ctaType: string) => {
     if (!channelId) return;
 
-    // sessionIdの完了を最大2秒待つ（まだ未取得の場合）
-    let sessionId: string | null = null;
-    if (sessionIdPromise) {
+    // 非同期処理を即座に発火（onClick内で安全に呼べるようvoid化）
+    void (async () => {
+      // sessionIdの完了を最大2秒待つ（まだ未取得の場合）
+      let sessionId: string | null = null;
+      if (sessionIdPromise) {
+        try {
+          const timeout = new Promise<null>((resolve) => {
+            const id = setTimeout(() => resolve(null), 2000);
+            // sessionIdPromiseが先に解決したらタイムアウトをクリア
+            sessionIdPromise.finally(() => clearTimeout(id));
+          });
+          sessionId = await Promise.race([sessionIdPromise, timeout]);
+        } catch {
+          // 失敗時はnullのまま
+        }
+      }
+
+      const payload = JSON.stringify({ channelId, ctaType, sessionId });
+
+      // fetch で送信を試み、失敗したら sendBeacon にフォールバック
       try {
-        sessionId = await Promise.race([
-          sessionIdPromise,
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
-        ]);
+        const res = await fetch("/api/track/cta", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+        });
+        if (!res.ok) throw new Error("fetch failed");
       } catch {
-        // タイムアウトや失敗時はnullのまま
+        // フォールバック: sendBeacon（ページ遷移時でも確実に送信）
+        if (typeof navigator.sendBeacon === "function") {
+          navigator.sendBeacon(
+            "/api/track/cta",
+            new Blob([payload], { type: "application/json" })
+          );
+        }
       }
-    }
-
-    const payload = JSON.stringify({ channelId, ctaType, sessionId });
-
-    // fetch で送信を試み、失敗したら sendBeacon にフォールバック
-    try {
-      const res = await fetch("/api/track/cta", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: payload,
-      });
-      if (!res.ok) throw new Error("fetch failed");
-    } catch {
-      // フォールバック: sendBeacon（ページ遷移時でも確実に送信）
-      if (typeof navigator.sendBeacon === "function") {
-        navigator.sendBeacon(
-          "/api/track/cta",
-          new Blob([payload], { type: "application/json" })
-        );
-      }
-    }
+    })();
   };
 
   const hasAnyCTA =
