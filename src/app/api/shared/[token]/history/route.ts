@@ -13,6 +13,7 @@ const DIAGNOSIS_TYPE_NAMES: Record<string, string> = {
   "visit-timing": "受診タイミング診断",
   "bad-breath-risk": "口臭リスク診断",
   "bruxism-risk": "歯ぎしりリスク診断",
+  "denture-risk": "入れ歯危険度診断",
 };
 
 const GENDER_NAMES: Record<string, string> = {

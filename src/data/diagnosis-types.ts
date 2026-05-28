@@ -1323,6 +1323,152 @@ export const bruxismRiskDiagnosis: DiagnosisType = {
   ],
 };
 
+export const dentureRiskDiagnosis: DiagnosisType = {
+  slug: "denture-risk",
+  name: "入れ歯危険度診断",
+  description:
+    "将来、入れ歯（義歯）が必要になるリスクをチェックし、今からできる予防のヒントをお伝えします",
+  targetAge: "40歳以上",
+  questions: [
+    {
+      id: 1,
+      text: "現在の年齢を教えてください",
+      choices: [
+        { text: "60代以上", score: 2 },
+        { text: "50代", score: 5 },
+        { text: "40代", score: 7 },
+        { text: "30代以下", score: 10 },
+      ],
+    },
+    {
+      id: 2,
+      text: "これまでに失った歯（親知らずを除く）の本数は？",
+      choices: [
+        { text: "6本以上", score: 0 },
+        { text: "3〜5本", score: 4 },
+        { text: "1〜2本", score: 7 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 3,
+      text: "歯がグラグラする、噛むと痛い、歯ぐきから出血することはありますか？",
+      choices: [
+        { text: "よくある", score: 0 },
+        { text: "たまにある", score: 5 },
+        { text: "ほとんどない", score: 10 },
+      ],
+    },
+    {
+      id: 4,
+      text: "硬いもの（おせんべい・たくあんなど）を噛みにくいと感じますか？",
+      choices: [
+        { text: "よく感じる", score: 0 },
+        { text: "たまに感じる", score: 5 },
+        { text: "感じない", score: 10 },
+      ],
+    },
+    {
+      id: 5,
+      text: "1日の歯磨き・口腔ケアの習慣は？",
+      choices: [
+        { text: "0〜1回のみ", score: 0 },
+        { text: "2回（歯ブラシのみ）", score: 5 },
+        { text: "2回 + 歯間ブラシ/フロス", score: 8 },
+        { text: "3回以上 + 歯間ケア", score: 10 },
+      ],
+    },
+    {
+      id: 6,
+      text: "歯科検診の頻度はどれくらいですか？",
+      choices: [
+        { text: "ほとんど行かない", score: 0 },
+        { text: "痛くなったときだけ", score: 3 },
+        { text: "年1回程度", score: 7 },
+        { text: "半年に1回以上", score: 10 },
+      ],
+    },
+    {
+      id: 7,
+      text: "喫煙の習慣はありますか？",
+      choices: [
+        { text: "毎日吸う", score: 0 },
+        { text: "ときどき吸う", score: 5 },
+        { text: "やめた/吸わない", score: 10 },
+      ],
+    },
+    {
+      id: 8,
+      text: "糖尿病、骨粗しょう症などの持病はありますか？",
+      choices: [
+        { text: "治療中の持病がある", score: 0 },
+        { text: "予備軍と指摘されたことがある", score: 5 },
+        { text: "特にない", score: 10 },
+      ],
+    },
+    {
+      id: 9,
+      text: "むし歯や歯周病の治療を中断したまま、放置している歯はありますか？",
+      choices: [
+        { text: "ある", score: 0 },
+        { text: "わからない", score: 5 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 10,
+      text: "ご家族（両親など）に入れ歯を使っている方はいますか？",
+      choices: [
+        { text: "50代以下から使い始めた", score: 0 },
+        { text: "60代以降から使い始めた", score: 5 },
+        { text: "いない/わからない", score: 10 },
+      ],
+    },
+  ],
+  resultPatterns: [
+    {
+      minScore: 0,
+      maxScore: 30,
+      category: "超高リスク",
+      title: "入れ歯になる危険度が非常に高い状態です",
+      message:
+        "現状のままでは、将来入れ歯が必要になる可能性が高い状態です。歯周病や進行中のむし歯が隠れていることもあります。できるだけ早く歯科医院で総合的なチェックを受け、残っている歯を守る治療を始めましょう。",
+    },
+    {
+      minScore: 31,
+      maxScore: 50,
+      category: "高リスク",
+      title: "入れ歯リスクが高めです",
+      message:
+        "気になるサインが複数見られます。歯を失う原因の多くは歯周病とむし歯です。歯科でのクリーニングと治療計画の相談、毎日の歯間ケアを取り入れることで、これ以上歯を失うリスクを下げられます。",
+    },
+    {
+      minScore: 51,
+      maxScore: 70,
+      category: "中リスク",
+      title: "油断は禁物の状態です",
+      message:
+        "今のところ大きな問題はなさそうですが、生活習慣や加齢で一気にリスクが上がりやすい時期です。定期検診と歯間ブラシ・フロスの習慣を取り入れ、自分の歯を1本でも多く残しましょう。",
+    },
+    {
+      minScore: 71,
+      maxScore: 85,
+      category: "低リスク",
+      title: "入れ歯リスクは低めです",
+      message:
+        "歯と歯ぐきの状態は良好なようです。この調子で歯科検診とセルフケアを続ければ、将来も自分の歯で食事を楽しめる可能性が高いでしょう。",
+    },
+    {
+      minScore: 86,
+      maxScore: 100,
+      category: "優良",
+      title: "理想的なお口の状態です",
+      message:
+        "入れ歯になるリスクは非常に低い状態です。素晴らしいケアが習慣になっています。8020運動（80歳で20本以上の歯を残そう）の達成も十分に目指せます。この調子で継続しましょう。",
+    },
+  ],
+};
+
 export const diagnosisTypes: Record<string, DiagnosisType> = {
   "oral-age": oralAgeDiagnosis,
   "child-orthodontics": childOrthodonticsDiagnosis,
@@ -1333,6 +1479,7 @@ export const diagnosisTypes: Record<string, DiagnosisType> = {
   "visit-timing": visitTimingDiagnosis,
   "bad-breath-risk": badBreathRiskDiagnosis,
   "bruxism-risk": bruxismRiskDiagnosis,
+  "denture-risk": dentureRiskDiagnosis,
 };
 
 export function getDiagnosisType(slug: string): DiagnosisType | undefined {
