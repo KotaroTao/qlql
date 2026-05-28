@@ -94,6 +94,7 @@ export async function generateStaticParams() {
     { type: "visit-timing" },
     { type: "bad-breath-risk" },
     { type: "bruxism-risk" },
+    { type: "denture-risk" },
   ];
 }
 
