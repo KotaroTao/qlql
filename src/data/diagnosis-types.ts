@@ -1332,12 +1332,12 @@ export const dentureRiskDiagnosis: DiagnosisType = {
   questions: [
     {
       id: 1,
-      text: "現在の年齢を教えてください",
+      text: "現在、入れ歯・ブリッジ・インプラントなど、歯を補う処置を受けていますか？",
       choices: [
-        { text: "60代以上", score: 2 },
-        { text: "50代", score: 5 },
-        { text: "40代", score: 7 },
-        { text: "30代以下", score: 10 },
+        { text: "入れ歯（部分入れ歯または総入れ歯）を使用中", score: 0 },
+        { text: "ブリッジまたはインプラントを使用中", score: 4 },
+        { text: "大きな詰め物・かぶせ物が複数本ある", score: 7 },
+        { text: "特にない", score: 10 },
       ],
     },
     {
