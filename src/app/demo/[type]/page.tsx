@@ -95,6 +95,8 @@ export async function generateStaticParams() {
     { type: "bad-breath-risk" },
     { type: "bruxism-risk" },
     { type: "denture-risk" },
+    { type: "adult-alignment" },
+    { type: "child-alignment" },
   ];
 }
 
