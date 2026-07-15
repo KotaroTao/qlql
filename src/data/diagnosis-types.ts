@@ -1472,6 +1472,290 @@ export const dentureRiskDiagnosis: DiagnosisType = {
   ],
 };
 
+export const adultAlignmentDiagnosis: DiagnosisType = {
+  slug: "adult-alignment",
+  name: "大人の歯並び診断",
+  description:
+    "気になる歯並びや噛み合わせの状態をチェックし、矯正相談の必要性を診断します",
+  targetAge: "18歳以上",
+  questions: [
+    {
+      id: 1,
+      text: "歯並びで気になるところはありますか？",
+      choices: [
+        { text: "とても気になる", score: 0 },
+        { text: "少し気になる", score: 5 },
+        { text: "特にない", score: 10 },
+      ],
+    },
+    {
+      id: 2,
+      text: "前歯にすき間（すきっ歯）や、重なり・ガタつきはありますか？",
+      choices: [
+        { text: "はっきりある", score: 0 },
+        { text: "少しある", score: 5 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 3,
+      text: "「出っ歯」「受け口」など、噛み合わせのズレが気になりますか？",
+      choices: [
+        { text: "とても気になる", score: 0 },
+        { text: "少し気になる", score: 5 },
+        { text: "気にならない", score: 10 },
+      ],
+    },
+    {
+      id: 4,
+      text: "食べ物が特定の歯に挟まりやすい、噛み切りにくいと感じますか？",
+      choices: [
+        { text: "よくある", score: 0 },
+        { text: "たまにある", score: 5 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 5,
+      text: "歯並びのせいで歯磨きしにくい・磨き残しが気になる場所はありますか？",
+      choices: [
+        { text: "よくある", score: 0 },
+        { text: "少しある", score: 5 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 6,
+      text: "口を閉じたとき、唇が自然に閉じにくい・口元が出ていると感じますか？",
+      choices: [
+        { text: "よく感じる", score: 0 },
+        { text: "少し感じる", score: 5 },
+        { text: "感じない", score: 10 },
+      ],
+    },
+    {
+      id: 7,
+      text: "サ行・タ行など、発音で気になることはありますか？",
+      choices: [
+        { text: "ある", score: 0 },
+        { text: "少しある", score: 5 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 8,
+      text: "写真や人前で、歯並び・口元が気になって笑いにくいことはありますか？",
+      choices: [
+        { text: "よくある", score: 0 },
+        { text: "たまにある", score: 5 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 9,
+      text: "あご（顎関節）に痛み・音・開けにくさを感じることはありますか？",
+      choices: [
+        { text: "よくある", score: 0 },
+        { text: "たまにある", score: 5 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 10,
+      text: "これまでに歯科で歯並びや噛み合わせを指摘されたことはありますか？",
+      choices: [
+        { text: "指摘されたが治療していない", score: 0 },
+        { text: "覚えていない・わからない", score: 5 },
+        { text: "指摘されていない", score: 10 },
+      ],
+    },
+  ],
+  resultPatterns: [
+    {
+      minScore: 0,
+      maxScore: 30,
+      category: "高リスク",
+      title: "歯並び・噛み合わせに気になる点が多い状態です",
+      message:
+        "歯並びや噛み合わせに複数の気になるサインが見られます。放置すると歯磨きのしにくさから虫歯や歯周病になりやすくなったり、噛み合わせの負担が続くこともあります。一度、矯正相談を受けて現状を確認することを強くおすすめします。",
+    },
+    {
+      minScore: 31,
+      maxScore: 50,
+      category: "中リスク",
+      title: "いくつか気になる点があります",
+      message:
+        "歯並びや噛み合わせに気になるポイントがいくつかあります。今すぐ治療が必要とは限りませんが、専門家に一度相談しておくと、選べる治療の幅が広がります。",
+    },
+    {
+      minScore: 51,
+      maxScore: 70,
+      category: "やや注意",
+      title: "軽度の気になる点があります",
+      message:
+        "大きな問題は少なそうですが、軽度の気になる点があります。定期検診の際に歯並びや噛み合わせもチェックしてもらい、変化がないか見ておくと安心です。",
+    },
+    {
+      minScore: 71,
+      maxScore: 85,
+      category: "良好",
+      title: "歯並びの状態は良好です",
+      message:
+        "歯並び・噛み合わせは概ね良好な状態です。今の状態を保てるよう、定期検診と丁寧なセルフケアを続けましょう。",
+    },
+    {
+      minScore: 86,
+      maxScore: 100,
+      category: "優良",
+      title: "理想的な歯並び・噛み合わせです",
+      message:
+        "歯並びや噛み合わせに気になる点はほとんどない、理想的な状態です。この良い状態を維持していきましょう。",
+    },
+  ],
+};
+
+export const childAlignmentDiagnosis: DiagnosisType = {
+  slug: "child-alignment",
+  name: "子供の歯並び診断",
+  description:
+    "お子さんの歯並びや噛み合わせの気になるサインをチェックします",
+  targetAge: "3〜12歳のお子さんをお持ちの保護者",
+  questions: [
+    {
+      id: 1,
+      text: "お子さんの歯並びで気になるところはありますか？",
+      choices: [
+        { text: "とても気になる", score: 0 },
+        { text: "少し気になる", score: 5 },
+        { text: "特にない", score: 10 },
+      ],
+    },
+    {
+      id: 2,
+      text: "前歯や奥歯がガタガタ・重なって生えている様子はありますか？",
+      choices: [
+        { text: "重なりが目立つ", score: 0 },
+        { text: "少し気になる", score: 5 },
+        { text: "まっすぐ生えている", score: 10 },
+      ],
+    },
+    {
+      id: 3,
+      text: "「出っ歯」（上の前歯が前に出ている）が気になりますか？",
+      choices: [
+        { text: "とても気になる", score: 0 },
+        { text: "少し気になる", score: 5 },
+        { text: "気にならない", score: 10 },
+      ],
+    },
+    {
+      id: 4,
+      text: "「受け口」（下の前歯が上の歯より前に出ている）が気になりますか？",
+      choices: [
+        { text: "とても気になる", score: 0 },
+        { text: "少し気になる", score: 5 },
+        { text: "気にならない", score: 10 },
+      ],
+    },
+    {
+      id: 5,
+      text: "噛んだとき、前歯にすき間ができる・深く噛みすぎている様子はありますか？",
+      choices: [
+        { text: "はっきりある", score: 0 },
+        { text: "少しある", score: 5 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 6,
+      text: "指しゃぶり・舌を出す・唇や爪を噛むなどの癖はありますか？",
+      choices: [
+        { text: "現在もある", score: 0 },
+        { text: "以前あった", score: 5 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 7,
+      text: "口をポカンと開けている、または口呼吸が多いですか？",
+      choices: [
+        { text: "よくある", score: 0 },
+        { text: "たまにある", score: 5 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 8,
+      text: "食べ物を片側だけで噛む、よく噛まずに飲み込む様子はありますか？",
+      choices: [
+        { text: "よくある", score: 0 },
+        { text: "たまにある", score: 5 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 9,
+      text: "発音が舌足らずに聞こえる・気になることはありますか？",
+      choices: [
+        { text: "よくある", score: 0 },
+        { text: "少しある", score: 5 },
+        { text: "ない", score: 10 },
+      ],
+    },
+    {
+      id: 10,
+      text: "ご家族に歯並びや噛み合わせが気になる方はいますか？",
+      choices: [
+        { text: "いる", score: 0 },
+        { text: "わからない", score: 5 },
+        { text: "いない", score: 10 },
+      ],
+    },
+  ],
+  resultPatterns: [
+    {
+      minScore: 0,
+      maxScore: 30,
+      category: "高リスク",
+      title: "気になるサインが多く見られます",
+      message:
+        "歯並びや噛み合わせ、お口の癖に気になるサインが多く見られます。お子さんの矯正は成長の段階で治療のタイミングが大切です。早めに矯正相談を受けて、今どうすべきかを確認することをおすすめします。",
+    },
+    {
+      minScore: 31,
+      maxScore: 50,
+      category: "中リスク",
+      title: "いくつか気になる点があります",
+      message:
+        "いくつか気になる点があります。すぐに治療が必要とは限りませんが、一度専門家に相談して、成長を見ながら適切なタイミングを一緒に考えてもらうと安心です。",
+    },
+    {
+      minScore: 51,
+      maxScore: 70,
+      category: "やや注意",
+      title: "軽度の気になる点があります",
+      message:
+        "大きな心配は少なそうですが、軽度の気になる点があります。指しゃぶりや口呼吸などの癖は歯並びに影響することがあるため、定期的にチェックしておきましょう。",
+    },
+    {
+      minScore: 71,
+      maxScore: 85,
+      category: "良好",
+      title: "現時点で大きな心配は少ないです",
+      message:
+        "現時点では大きな心配は少なそうです。ただし歯並びは成長とともに変化しますので、定期検診の際に歯並びの様子も見てもらいましょう。",
+    },
+    {
+      minScore: 86,
+      maxScore: 100,
+      category: "優良",
+      title: "理想的な歯並びの状態です",
+      message:
+        "歯並びや噛み合わせ、お口の癖ともに良い状態です。この調子で、定期検診と毎日のケアを続けていきましょう。",
+    },
+  ],
+};
+
 export const diagnosisTypes: Record<string, DiagnosisType> = {
   "oral-age": oralAgeDiagnosis,
   "child-orthodontics": childOrthodonticsDiagnosis,
@@ -1483,6 +1767,8 @@ export const diagnosisTypes: Record<string, DiagnosisType> = {
   "bad-breath-risk": badBreathRiskDiagnosis,
   "bruxism-risk": bruxismRiskDiagnosis,
   "denture-risk": dentureRiskDiagnosis,
+  "adult-alignment": adultAlignmentDiagnosis,
+  "child-alignment": childAlignmentDiagnosis,
 };
 
 export function getDiagnosisType(slug: string): DiagnosisType | undefined {
