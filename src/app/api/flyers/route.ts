@@ -87,13 +87,13 @@ export async function GET(request: NextRequest) {
     // 全チラシに紐付く全Channel IDを集めて、一括でスキャン関連カウントを取得
     const channelIds = flyers.flatMap((f) => f.channels.map((c) => c.id));
 
-    // qr_scan が本来のスキャン計測（2026/5/10〜記録）。
-    // qr_scan 計測導入前のフォールバックは DiagnosisSession 件数を使う。
-    // ─ link 型・diagnosis 型どちらも /api/track/link-complete または診断完了で 1 Session が
-    //   作られる設計なので、管理者ダッシュボードのセッション数と整合する。
-    //   （旧実装は link=CTAClick / diagnosis=page_view で数えていたが、page_view は
-    //   プロフィールページ訪問のため、DiagnosisSession 件数と一致しない場合があり、
-    //   管理者画面の「セッション数」と数字が合わない原因になっていた。）
+    // 「QRアクセス」は画面下部の「QR読み込み履歴」の件数と一致させる。
+    // 履歴（/api/dashboard/history）は次の 2 種類のレコードを 1 件ずつ並べているので、
+    // ここでも同じ条件で数えて合算する:
+    //   1. AccessLog(eventType="qr_scan")  … QRを読み込んだ瞬間の記録（2026/5/10〜計測）
+    //   2. DiagnosisSession(completedAt≠null) … 診断完了 / リンクQRのプロフィール入力完了
+    // 旧実装は両者の max を取っていたため、履歴が10件でもサマリーが7と表示され、
+    // 「履歴の件数」と「QRアクセス」がズレていた。
     const [qrScanCounts, sessionCounts] = await Promise.all([
       channelIds.length > 0
         ? prisma.accessLog.groupBy({
@@ -112,9 +112,10 @@ export async function GET(request: NextRequest) {
             by: ["channelId"],
             where: {
               channelId: { in: channelIds },
-              // 管理者ダッシュボードの sessionCount と同じフィルタ条件
+              // 履歴API（/api/dashboard/history）と同じフィルタ条件にそろえる
               isDemo: false,
               isDeleted: false,
+              completedAt: { not: null },
               ...dateRangeFilter,
             },
             _count: { id: true },
@@ -127,22 +128,15 @@ export async function GET(request: NextRequest) {
     const sessionCountMap: Record<string, number> = {};
     for (const r of sessionCounts) if (r.channelId) sessionCountMap[r.channelId] = r._count.id;
 
-    // 各 Channel ごとの実効スキャン数を計算
-    // qr_scan は 2026/5/10 から計測開始。それ以前のデータは qr_scan = 0 で
-    // フォールバック（DiagnosisSession 件数）で全件を補える。
-    // 計測開始後は qr_scan = sessions（1スキャン=1セッション）の関係になる想定だが、
-    // 「スキャンしたがプロフィール入力で離脱（バウンス）」したケースは
-    // qr_scan > sessions になる。両者の max を取ることで:
-    //   - 古いデータのみの期間: sessions で全件カバー
-    //   - 新データのみの期間: qr_scan が sessions と同数 or バウンス込みでより多い
-    //   - 古い+新しい混在: 通常 sessions が全期間カバーするので大きい方を採用
-    // この方が「セッション数37件あるのにスキャン1件しか見えない」状態を防げる。
+    // 各 Channel ごとの「QRアクセス」= 履歴に並ぶ件数（qr_scan + 完了セッション）
+    // 履歴リストは qr_scan 1件・完了セッション1件をそれぞれ別の行として表示するため、
+    // 合算した数がそのまま「QR読み込み履歴（N件）」の N と一致する。
     const channelScansMap: Record<string, number> = {};
     for (const f of flyers) {
       for (const c of f.channels) {
         const qrScans = qrScanMap[c.id] || 0;
         const sessions = sessionCountMap[c.id] || 0;
-        channelScansMap[c.id] = Math.max(qrScans, sessions);
+        channelScansMap[c.id] = qrScans + sessions;
       }
     }
 
