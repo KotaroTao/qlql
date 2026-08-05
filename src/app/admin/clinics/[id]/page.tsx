@@ -299,7 +299,7 @@ export default function AdminClinicDetailPage({
                 <div className="bg-white rounded-xl shadow-sm border p-4">
                   <div className="flex items-center gap-2 text-gray-500 text-sm mb-2">
                     <Eye className="w-4 h-4" />
-                    アクセス数
+                    QR読み込み数
                   </div>
                   <div className="text-2xl font-bold">{stats.accessCount.toLocaleString()}</div>
                 </div>

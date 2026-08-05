@@ -5,6 +5,11 @@ import { canTrackSession } from "@/lib/subscription";
 import { reverseGeocode } from "@/lib/geocoding";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
+  clearQrScanCookie,
+  createSessionWithScanLink,
+  resolveScanLogId,
+} from "@/lib/qr-scan-link";
+import {
   sanitizeAge,
   sanitizeGender,
   sanitizeLatitude,
@@ -88,30 +93,35 @@ export async function POST(request: NextRequest) {
       roundedLng = Math.round(longitude * 100) / 100;
     }
 
+    // このセッションの起点になったQR読み込み（Cookie経由）を特定する。
+    // 見つからなければ null（＝QRを介さない直接アクセス扱い）でセッションを作る。
+    const scanLogId = await resolveScanLogId(request, channelId);
+
     // 診断セッションを作成
-    const session = await prisma.diagnosisSession.create({
-      data: {
-        clinicId: channel.clinicId,
-        channelId,
-        diagnosisTypeId: diagnosisTypeRecord.id,
-        isDemo: false,
-        userAge,
-        userGender,
-        answers: body.answers || null,
-        totalScore,
-        resultCategory,
-        completedAt: new Date(),
-        ipAddress: ip !== "unknown" ? ip : null,
-        latitude: roundedLat,
-        longitude: roundedLng,
-        country: location?.country || null,
-        region: location?.region || null,
-        city: location?.city || null,
-        town: location?.town || null,
-      },
+    const session = await createSessionWithScanLink(scanLogId, {
+      clinicId: channel.clinicId,
+      channelId,
+      diagnosisTypeId: diagnosisTypeRecord.id,
+      isDemo: false,
+      userAge,
+      userGender,
+      answers: body.answers || null,
+      totalScore,
+      resultCategory,
+      completedAt: new Date(),
+      ipAddress: ip !== "unknown" ? ip : null,
+      latitude: roundedLat,
+      longitude: roundedLng,
+      country: location?.country || null,
+      region: location?.region || null,
+      city: location?.city || null,
+      town: location?.town || null,
     });
 
-    return NextResponse.json({ success: true, sessionId: session.id });
+    // 使い切ったCookieは削除（同じ読み込みが2件のセッションに紐付かないように）
+    const response = NextResponse.json({ success: true, sessionId: session.id });
+    clearQrScanCookie(response);
+    return response;
   } catch (error) {
     console.error("Track complete error:", error);
     return NextResponse.json({ success: false });

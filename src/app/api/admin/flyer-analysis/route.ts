@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
+import { getQrAccessCountsByChannel } from "@/lib/qr-access";
 
 interface ChannelWithRels {
   id: string;
@@ -94,23 +95,15 @@ export async function GET(request: Request) {
     const typedFlyers = flyers as FlyerWithClinic[];
     const channelIds = typedChannels.map((c) => c.id);
 
-    // アクセスログを eventType 別に集計
-    // - qr_scan : QRをスキャンした瞬間（c/[code] リダイレクトで計測）
-    // - page_view : 診断ページ到達数（旧計測のフォールバック用）
-    // 計測導入前: 診断付き → page_view、リンク型 → CTAClick にフォールバック
-    const [accessCounts, ctaCounts] = await Promise.all([
-      channelIds.length > 0
-        ? prisma.accessLog.groupBy({
-            by: ["channelId", "eventType"],
-            where: {
-              channelId: { in: channelIds },
-              isDeleted: false,
-              eventType: { in: ["qr_scan", "page_view"] },
-              ...(dateFilter ? { createdAt: dateFilter } : {}),
-            },
-            _count: { id: true },
-          })
-        : [],
+    // QRアクセス（実際にQRが読み込まれた回数）を共通ルールで集計。
+    // 医院ダッシュボード・チラシ管理・共有ページと同じ数字になる。
+    // 旧実装は qr_scan が無ければ page_view / CTAクリックで代替していたため、
+    // 医院側の画面と数字が食い違っていた。
+    const [scanCountMap, ctaCounts] = await Promise.all([
+      getQrAccessCountsByChannel(
+        channelIds,
+        dateFilter ? { createdAt: { gte: dateFilter.gte, lte: new Date() } } : {}
+      ),
       channelIds.length > 0
         ? prisma.cTAClick.groupBy({
             by: ["channelId"],
@@ -124,27 +117,15 @@ export async function GET(request: Request) {
         : [],
     ]);
 
-    const qrScanMap: Record<string, number> = {};
-    const pageViewMap: Record<string, number> = {};
-    for (const ac of accessCounts) {
-      if (!ac.channelId) continue;
-      if (ac.eventType === "qr_scan") qrScanMap[ac.channelId] = ac._count.id;
-      else if (ac.eventType === "page_view") pageViewMap[ac.channelId] = ac._count.id;
-    }
     const ctaCountMap: Record<string, number> = {};
     for (const cc of ctaCounts) {
       if (cc.channelId) ctaCountMap[cc.channelId] = cc._count.id;
     }
 
-    // チャネル1件あたりの「真のスキャン数」と「実効スキャン数（フォールバック含む）」を求める
+    // チャネル1件あたりの読み込み回数
     const channelScans = typedChannels.map((ch) => {
-      const qrScans = qrScanMap[ch.id] || 0;
-      const fallback =
-        ch.channelType === "link"
-          ? ctaCountMap[ch.id] || 0
-          : pageViewMap[ch.id] || 0;
-      const effective = qrScans > 0 ? qrScans : fallback;
-      return { id: ch.id, qrScans, scans: effective };
+      const scans = scanCountMap[ch.id] || 0;
+      return { id: ch.id, qrScans: scans, scans };
     });
     const scanById = new Map(channelScans.map((s) => [s.id, s]));
 

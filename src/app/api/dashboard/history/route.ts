@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveClinicContext } from "@/lib/dashboard-auth";
 import { prisma } from "@/lib/prisma";
-import { getCtaTypeName } from "@/lib/cta-types";
-
-// 診断タイプの表示名
-const DIAGNOSIS_TYPE_NAMES: Record<string, string> = {
-  "oral-age": "お口年齢診断",
-  "child-orthodontics": "子供の矯正タイミングチェック",
-  "periodontal-risk": "歯周病リスク診断",
-  "cavity-risk": "虫歯リスク診断",
-  "whitening-check": "ホワイトニング適正診断",
-  "teeth-yellowing": "歯の黄ばみ診断",
-  "visit-timing": "受診タイミング診断",
-  "bad-breath-risk": "口臭リスク診断",
-  "bruxism-risk": "歯ぎしりリスク診断",
-  "denture-risk": "入れ歯危険度診断",
-};
+import { QR_SCAN_EVENT_TYPE } from "@/lib/qr-access";
+import {
+  HISTORY_SCAN_INCLUDE,
+  HISTORY_SESSION_INCLUDE,
+  formatScanRow,
+  formatSessionRow,
+  mergeHistoryRows,
+  type HistoryRow,
+  type HistoryScanLog,
+  type HistorySession,
+} from "@/lib/history-format";
 
 export async function GET(request: NextRequest) {
   try {
@@ -83,11 +79,15 @@ export async function GET(request: NextRequest) {
     const activeChannelIds = activeChannels.map((c: { id: string }) => c.id);
 
     // フィルター条件
+    // accessLogId: null が重要。QR読み込みログに紐付いたセッションは
+    // 読み込みログ側の行にまとめて表示するので、ここでは二重に取らない。
+    // （紐付きが無いのは、qr_scan 計測開始前の過去データや直接URLアクセス）
     type WhereFilterType = {
       clinicId: string;
       isDemo: boolean;
       isDeleted: boolean;
       completedAt: { not: null };
+      accessLogId: null;
       createdAt?: { gte: Date; lte: Date };
       channelId?: string | { in: string[] };
       diagnosisType?: { slug: string };
@@ -98,6 +98,7 @@ export async function GET(request: NextRequest) {
       isDemo: false,
       isDeleted: false,
       completedAt: { not: null },
+      accessLogId: null,
       ...(dateFrom && dateTo ? { createdAt: { gte: dateFrom, lte: dateTo } } : {}),
     };
 
@@ -128,20 +129,7 @@ export async function GET(request: NextRequest) {
     // 履歴データを取得（カウントは初回のみ実行）
     const sessionsQuery = prisma.diagnosisSession.findMany({
       where: whereFilter,
-      include: {
-        channel: {
-          select: { id: true, name: true },
-        },
-        diagnosisType: {
-          select: { slug: true, name: true },
-        },
-        ctaClicks: {
-          select: { ctaType: true },
-        },
-        _count: {
-          select: { ctaClicks: true },
-        },
-      },
+      include: HISTORY_SESSION_INCLUDE,
       orderBy: { createdAt: "desc" },
       skip: offset,
       take: limit + 1, // 次のページがあるか確認するために1件多く取得
@@ -159,79 +147,12 @@ export async function GET(request: NextRequest) {
     const hasMore = sessions.length > limit;
     const sessionsToReturn = hasMore ? sessions.slice(0, limit) : sessions;
 
-    // 性別の表示名
-    const GENDER_NAMES: Record<string, string> = {
-      male: "男性",
-      female: "女性",
-      other: "-",
-    };
+    // 読み込みログに紐付いていない完了セッションを行に整形（過去データ・直接アクセス分）
+    const diagnosisHistory = (sessionsToReturn as HistorySession[]).map(
+      formatSessionRow
+    );
 
-    // 履歴データを整形
-    type SessionWithRelations = {
-      id: string;
-      createdAt: Date;
-      userAge: number | null;
-      userGender: string | null;
-      resultCategory: string | null;
-      sessionType: string | null;
-      region: string | null;
-      city: string | null;
-      town: string | null;
-      channel: { id: string; name: string } | null;
-      diagnosisType: { slug: string; name: string } | null;
-      ctaClicks: { ctaType: string }[];
-      _count: { ctaClicks: number };
-    };
-
-    // 診断履歴を整形
-    const diagnosisHistory = (sessionsToReturn as SessionWithRelations[]).map((s) => {
-      // CTA内訳を集計
-      const ctaByType: Record<string, number> = {};
-      for (const click of s.ctaClicks) {
-        ctaByType[click.ctaType] = (ctaByType[click.ctaType] || 0) + 1;
-      }
-
-      // エリア情報を整形（都道府県 + 市区町村 + 町名）
-      let area = "-";
-      if (s.region && s.city && s.town) {
-        area = `${s.region} ${s.city} ${s.town}`;
-      } else if (s.region && s.city) {
-        area = `${s.region} ${s.city}`;
-      } else if (s.region) {
-        area = s.region;
-      } else if (s.city) {
-        area = s.city;
-      }
-
-      const ctaClick = s.ctaClicks[0];
-
-      // セッションタイプに応じた表示名を決定
-      let diagnosisTypeName: string;
-      if (s.sessionType === "link") {
-        diagnosisTypeName = "リンクQR";
-      } else {
-        diagnosisTypeName = s.diagnosisType?.name || DIAGNOSIS_TYPE_NAMES[s.diagnosisType?.slug || ""] || "不明";
-      }
-
-      return {
-        id: s.id,
-        type: s.sessionType === "link" ? "link" as const : "diagnosis" as const,
-        createdAt: s.createdAt,
-        userAge: s.userAge,
-        userGender: s.userGender ? GENDER_NAMES[s.userGender] || s.userGender : null,
-        diagnosisType: diagnosisTypeName,
-        diagnosisTypeSlug: s.diagnosisType?.slug || null,
-        resultCategory: s.resultCategory,
-        channelName: s.channel?.name || "不明",
-        channelId: s.channel?.id,
-        area,
-        ctaType: ctaClick ? getCtaTypeName(ctaClick.ctaType) : null,
-        ctaClickCount: s._count.ctaClicks,
-        ctaByType,
-      };
-    });
-
-    // QRスキャン（リンクタイプ）の履歴を取得
+    // QR読み込みログの履歴を取得
     type AccessLogFilterType = {
       clinicId: string;
       eventType: string;
@@ -242,7 +163,7 @@ export async function GET(request: NextRequest) {
 
     const accessLogFilter: AccessLogFilterType = {
       clinicId: session.clinicId,
-      eventType: "qr_scan",
+      eventType: QR_SCAN_EVENT_TYPE,
       isDeleted: false,
       ...(dateFrom && dateTo ? { createdAt: { gte: dateFrom, lte: dateTo } } : {}),
     };
@@ -258,75 +179,32 @@ export async function GET(request: NextRequest) {
     // diagnosisTypeが指定されている場合はQRスキャンを除外
     const includeQRScans = !diagnosisType;
 
-    let qrScanHistory: Array<{
-      id: string;
-      type: "qr_scan";
-      createdAt: Date;
-      userAge: null;
-      userGender: null;
-      diagnosisType: string;
-      diagnosisTypeSlug: null;
-      channelName: string;
-      channelId: string | null;
-      area: string;
-      ctaType: null;
-      ctaClickCount: number;
-      ctaByType: Record<string, number>;
-    }> = [];
+    let qrScanHistory: HistoryRow[] = [];
 
     if (includeQRScans) {
-      type AccessLogWithChannel = {
-        id: string;
-        createdAt: Date;
-        region: string | null;
-        city: string | null;
-        channel: { id: string; name: string } | null;
-      };
-
-      const qrScans = await prisma.accessLog.findMany({
+      const qrScans = (await prisma.accessLog.findMany({
         where: accessLogFilter,
-        include: {
-          channel: {
-            select: { id: true, name: true },
-          },
-        },
+        include: HISTORY_SCAN_INCLUDE,
         orderBy: { createdAt: "desc" },
         skip: offset,
         take: limit + 1, // 次のページがあるか確認するために1件多く取得
-      }) as AccessLogWithChannel[];
+      })) as unknown as HistoryScanLog[];
 
-      qrScanHistory = qrScans.map((log: AccessLogWithChannel) => {
-        let area = "-";
-        if (log.region && log.city) {
-          area = `${log.region} ${log.city}`;
-        } else if (log.region) {
-          area = log.region;
-        } else if (log.city) {
-          area = log.city;
-        }
-
-        return {
-          id: log.id,
-          type: "qr_scan" as const,
-          createdAt: log.createdAt,
-          userAge: null,
-          userGender: null,
-          diagnosisType: "QR読み込み",
-          diagnosisTypeSlug: null,
-          channelName: log.channel?.name || "不明",
-          channelId: log.channel?.id || null,
-          area,
-          ctaType: null,
-          ctaClickCount: 0,
-          ctaByType: {},
-        };
-      });
+      // 紐付く完了セッションがある行は、その属性（年齢・性別・診断結果）を
+      // 同じ1行に合体させる。読み込みと完了が2行に分かれないので、
+      // 履歴の件数がそのまま「実際にQRを読み込んだ回数」になる。
+      // ただし削除済みセッションが紐付いている場合は、属性なしの読み込み行として扱う。
+      qrScanHistory = qrScans.map((log) =>
+        formatScanRow(
+          log.session && (log.session as HistorySession & { isDeleted?: boolean }).isDeleted
+            ? { ...log, session: null }
+            : log
+        )
+      );
     }
 
     // 両方の履歴を統合し、日時でソート
-    const combinedHistory = [...diagnosisHistory, ...qrScanHistory].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const combinedHistory = mergeHistoryRows(qrScanHistory, diagnosisHistory);
 
     // 次のページがあるかどうかを判定（skipCount時はlimit+1パターンで判定）
     const combinedHasMore = combinedHistory.length > limit;

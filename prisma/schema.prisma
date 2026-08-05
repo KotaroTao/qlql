@@ -176,6 +176,13 @@ model DiagnosisSession {
   sessionType     String    @default("diagnosis") @map("session_type") // "diagnosis" | "link"
   isDemo          Boolean   @default(false) @map("is_demo")
   isDeleted       Boolean   @default(false) @map("is_deleted") // 履歴から論理削除
+
+  // このセッションの起点になった QR 読み込み（AccessLog の qr_scan）。
+  // 「QRを読み込んだ」→「診断/入力を完了した」を1本の行動として結び付けるための鍵。
+  // これがあることで、集計時にスキャン1件とセッション1件を二重に数えずに済む。
+  // null になるケース: qr_scan 計測開始（2026/5/10）より前のデータ、
+  // QRを介さず直接URLを開いた場合、Cookieが失効/ブロックされていた場合。
+  accessLogId String? @unique @map("access_log_id")
   userAge         Int?      @map("user_age")
   userGender      String?   @map("user_gender")
   answers         Json?
@@ -196,6 +203,7 @@ model DiagnosisSession {
   clinic        Clinic?        @relation(fields: [clinicId], references: [id], onDelete: SetNull)
   channel       Channel?       @relation(fields: [channelId], references: [id], onDelete: SetNull)
   diagnosisType DiagnosisType? @relation(fields: [diagnosisTypeId], references: [id]) // linkタイプはnull
+  accessLog     AccessLog?     @relation(fields: [accessLogId], references: [id], onDelete: SetNull)
   ctaClicks     CTAClick[]
 
   @@index([channelId])
@@ -204,6 +212,7 @@ model DiagnosisSession {
   @@index([clinicId, completedAt, isDemo, createdAt]) // ダッシュボード集計の高速化
   @@index([clinicId, sessionType]) // セッションタイプ別集計
   @@index([clinicId, isDeleted]) // 削除済みフィルタリング用
+  @@index([channelId, accessLogId]) // 未紐付けセッションの集計高速化
   @@map("diagnosis_sessions")
 }
 
@@ -227,10 +236,13 @@ model AccessLog {
 
   clinic  Clinic?  @relation(fields: [clinicId], references: [id], onDelete: SetNull)
   channel Channel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  // この読み込みから始まった診断/入力セッション（完了しなければ null のまま）
+  session DiagnosisSession?
 
   @@index([clinicId, createdAt])
   @@index([channelId, createdAt])
   @@index([clinicId, isDeleted]) // 削除済みフィルタリング用
+  @@index([channelId, eventType, createdAt]) // qr_scan 件数集計の高速化
   @@map("access_logs")
 }
 

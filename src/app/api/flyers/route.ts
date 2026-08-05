@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getSubscriptionState } from "@/lib/subscription";
+import { getQrAccessCountsByChannel } from "@/lib/qr-access";
 
 // 医院に属するチラシ一覧を取得
 // 各チラシに紐付くQRごとの「QR名 / スキャン数」も併せて返す
@@ -87,58 +88,13 @@ export async function GET(request: NextRequest) {
     // 全チラシに紐付く全Channel IDを集めて、一括でスキャン関連カウントを取得
     const channelIds = flyers.flatMap((f) => f.channels.map((c) => c.id));
 
-    // 「QRアクセス」は画面下部の「QR読み込み履歴」の件数と一致させる。
-    // 履歴（/api/dashboard/history）は次の 2 種類のレコードを 1 件ずつ並べているので、
-    // ここでも同じ条件で数えて合算する:
-    //   1. AccessLog(eventType="qr_scan")  … QRを読み込んだ瞬間の記録（2026/5/10〜計測）
-    //   2. DiagnosisSession(completedAt≠null) … 診断完了 / リンクQRのプロフィール入力完了
-    // 旧実装は両者の max を取っていたため、履歴が10件でもサマリーが7と表示され、
-    // 「履歴の件数」と「QRアクセス」がズレていた。
-    const [qrScanCounts, sessionCounts] = await Promise.all([
-      channelIds.length > 0
-        ? prisma.accessLog.groupBy({
-            by: ["channelId"],
-            where: {
-              channelId: { in: channelIds },
-              isDeleted: false,
-              eventType: "qr_scan",
-              ...dateRangeFilter,
-            },
-            _count: { id: true },
-          })
-        : [],
-      channelIds.length > 0
-        ? prisma.diagnosisSession.groupBy({
-            by: ["channelId"],
-            where: {
-              channelId: { in: channelIds },
-              // 履歴API（/api/dashboard/history）と同じフィルタ条件にそろえる
-              isDemo: false,
-              isDeleted: false,
-              completedAt: { not: null },
-              ...dateRangeFilter,
-            },
-            _count: { id: true },
-          })
-        : [],
-    ]);
-
-    const qrScanMap: Record<string, number> = {};
-    for (const r of qrScanCounts) if (r.channelId) qrScanMap[r.channelId] = r._count.id;
-    const sessionCountMap: Record<string, number> = {};
-    for (const r of sessionCounts) if (r.channelId) sessionCountMap[r.channelId] = r._count.id;
-
-    // 各 Channel ごとの「QRアクセス」= 履歴に並ぶ件数（qr_scan + 完了セッション）
-    // 履歴リストは qr_scan 1件・完了セッション1件をそれぞれ別の行として表示するため、
-    // 合算した数がそのまま「QR読み込み履歴（N件）」の N と一致する。
-    const channelScansMap: Record<string, number> = {};
-    for (const f of flyers) {
-      for (const c of f.channels) {
-        const qrScans = qrScanMap[c.id] || 0;
-        const sessions = sessionCountMap[c.id] || 0;
-        channelScansMap[c.id] = qrScans + sessions;
-      }
-    }
+    // 各 Channel ごとの「QRアクセス」= 実際にQRが読み込まれた回数。
+    // 数え方は src/lib/qr-access.ts に集約（ダッシュボード・共有ページ・管理画面と共通）。
+    // 画面下部の「QR読み込み履歴」の件数とも必ず一致する。
+    const channelScansMap = await getQrAccessCountsByChannel(
+      channelIds,
+      dateRangeFilter
+    );
 
     return NextResponse.json({
       flyers: flyers.map((f) => ({

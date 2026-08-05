@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkSubscription, canTrackSession } from "@/lib/subscription";
 import { getClientIP } from "@/lib/geolocation";
+import { setQrScanCookie } from "@/lib/qr-scan-link";
 
 // ベースURLを取得（環境変数優先、フォールバックはrequest.url）
 function getBaseUrl(request: NextRequest): string {
@@ -42,14 +43,15 @@ function isBotOrPrefetch(request: NextRequest): boolean {
 }
 
 // QRスキャン1件を記録（失敗してもリダイレクトは妨げない）
+// 作成したログのIDを返す。あとで診断/入力の完了セッションと結び付けるために使う。
 async function recordQrScan(
   request: NextRequest,
   channelId: string,
   clinicId: string
-): Promise<void> {
+): Promise<string | null> {
   try {
     const ip = getClientIP(request);
-    await prisma.accessLog.create({
+    const log = await prisma.accessLog.create({
       data: {
         clinicId,
         channelId,
@@ -60,10 +62,13 @@ async function recordQrScan(
         // 位置情報（country/region/city）は後段の page_view 側で記録される
         // QRスキャン時は外部API呼び出しを避けてリダイレクトを高速化
       },
+      select: { id: true },
     });
+    return log.id;
   } catch (error) {
     // トラッキング失敗はユーザー体験を絶対に壊さない
     console.error("QR scan tracking error:", error);
+    return null;
   }
 }
 
@@ -102,25 +107,32 @@ export async function GET(
     //   離脱したユーザーが分母に入っていなかった（反応率が実態より低く出ていた）
     // canTrackSession は checkSubscription より厳しく、grace_period では false を返す。
     // ユーザーの遷移自体は止めず（リダイレクトは継続）、AccessLog のみスキップする。
+    let scanLogId: string | null = null;
     if (!isBotOrPrefetch(request)) {
       const canTrack = await canTrackSession(channel.clinicId);
       if (canTrack) {
-        await recordQrScan(request, channel.id, channel.clinicId);
+        scanLogId = await recordQrScan(request, channel.id, channel.clinicId);
       }
     }
 
-    // diagnosisタイプの場合 → プロファイル入力ページへ
+    // 遷移先を決めてリダイレクトを作る。
+    // 記録できた読み込みログのIDはCookieに載せて次のページへ運び、
+    // 診断/入力の完了時に「この読み込みの続き」として紐付ける。
+    // → 集計時に「読み込み1件 + 完了1件 = 2件」と二重に数えるのを防ぐ
+    let destination = `${baseUrl}/`;
     if (channel.channelType === "diagnosis" && channel.diagnosisTypeSlug) {
-      return NextResponse.redirect(`${baseUrl}/c/${code}/profile`);
+      // diagnosisタイプの場合 → プロファイル入力ページへ
+      destination = `${baseUrl}/c/${code}/profile`;
+    } else if (channel.channelType === "link" && channel.redirectUrl) {
+      // linkタイプの場合 → プロファイル入力ページへ
+      destination = `${baseUrl}/c/${code}/link`;
     }
 
-    // linkタイプの場合 → プロファイル入力ページへ
-    if (channel.channelType === "link" && channel.redirectUrl) {
-      return NextResponse.redirect(`${baseUrl}/c/${code}/link`);
+    const response = NextResponse.redirect(destination);
+    if (scanLogId) {
+      setQrScanCookie(response, channel.id, scanLogId);
     }
-
-    // どちらでもない場合はトップへ
-    return NextResponse.redirect(`${baseUrl}/`);
+    return response;
   } catch (error) {
     console.error("Channel redirect error:", error);
     return NextResponse.redirect(`${baseUrl}/`);
