@@ -153,8 +153,10 @@ function FlyerCard({ flyer: f }: { flyer: Flyer }) {
         </div>
 
         {/* チラシデータ: 配布枚数 + QRアクセス系の集計（QR合計値ベース）
-            アクセス率 = QR合計スキャン ÷ 配布枚数
-            アクセス単価 = 予算 ÷ QR合計スキャン */}
+            QRアクセス = 実際にQRが読み込まれた回数（数え方は src/lib/qr-access.ts に集約）
+            　　　　　　 下部「QR読み込み履歴」の件数・エリアの分母とも一致する
+            アクセス率 = QRアクセス ÷ 配布枚数
+            アクセス単価 = 予算 ÷ QRアクセス */}
         {(() => {
           const totalScans = f.channels.reduce((acc, ch) => acc + ch.scans, 0);
           const rate =

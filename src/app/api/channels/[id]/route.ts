@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getSubscriptionState } from "@/lib/subscription";
+import { getQrAccessCountsByChannel } from "@/lib/qr-access";
 import type { Channel } from "@/types/clinic";
 
 // QRコード詳細を取得
@@ -31,18 +32,10 @@ export async function GET(
       );
     }
 
-    // リンクタイプの場合、scanCountをDiagnosisSessionの件数から動的に計算
-    let dynamicScanCount = channel.scanCount;
-    if (channel.channelType === "link") {
-      dynamicScanCount = await prisma.diagnosisSession.count({
-        where: {
-          channelId: id,
-          sessionType: "link",
-          isDeleted: false,
-          completedAt: { not: null },
-        },
-      });
-    }
+    // QR読み込み回数は「実際に読み込まれた回数」を共通ルールで動的に算出する。
+    // Channel.scanCount カラムは古い累積値で他画面と食い違うため使わない。
+    const scanCounts = await getQrAccessCountsByChannel([id]);
+    const dynamicScanCount = scanCounts[id] || 0;
 
     return NextResponse.json({
       channel: {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
+import { getQrAccessTotal } from "@/lib/qr-access";
 
 // 指定医院のダッシュボード統計を取得（管理者用）
 export async function GET(
@@ -75,14 +76,9 @@ export async function GET(
       genderStats,
       completedSessions,
     ] = await Promise.all([
-      // アクセス数（診断ページ）
-      prisma.accessLog.count({
-        where: {
-          clinicId,
-          eventType: { not: "clinic_page_view" },
-          ...dateFilter,
-        },
-      }),
+      // QR読み込み数（実際にQRが読み込まれた回数）
+      // 医院側ダッシュボードと同じ共通ルールで数え、同じ数字が出るようにする
+      getQrAccessTotal({ clinicId, dateRange: dateFilter }),
 
       // 診断完了数（削除・デモを除外）
       prisma.diagnosisSession.count({

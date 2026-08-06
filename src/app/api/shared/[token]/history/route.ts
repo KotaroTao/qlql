@@ -1,26 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCtaTypeName } from "@/lib/cta-types";
-
-// 診断タイプの表示名
-const DIAGNOSIS_TYPE_NAMES: Record<string, string> = {
-  "oral-age": "お口年齢診断",
-  "child-orthodontics": "子供の矯正タイミングチェック",
-  "periodontal-risk": "歯周病リスク診断",
-  "cavity-risk": "虫歯リスク診断",
-  "whitening-check": "ホワイトニング適正診断",
-  "teeth-yellowing": "歯の黄ばみ診断",
-  "visit-timing": "受診タイミング診断",
-  "bad-breath-risk": "口臭リスク診断",
-  "bruxism-risk": "歯ぎしりリスク診断",
-  "denture-risk": "入れ歯危険度診断",
-};
-
-const GENDER_NAMES: Record<string, string> = {
-  male: "男性",
-  female: "女性",
-  other: "-",
-};
+import { QR_SCAN_EVENT_TYPE } from "@/lib/qr-access";
+import {
+  HISTORY_SCAN_INCLUDE,
+  HISTORY_SESSION_INCLUDE,
+  formatScanRow,
+  formatSessionRow,
+  mergeHistoryRows,
+  type HistoryScanLog,
+  type HistorySession,
+} from "@/lib/history-format";
 
 // 共有ダッシュボードの履歴を取得（認証不要、トークンで医院を特定）
 export async function GET(
@@ -117,90 +106,64 @@ export async function GET(
       });
     }
 
+    // 読み込みログに紐付いていない完了セッションのみ取得。
+    // 紐付いているものは読み込みログ側の行にまとめられるので、ここでは数えない
+    // （そうしないと1回の読み込みが2行になり、件数が実際の読み込み回数とズレる）
     const whereFilter = {
       clinicId,
       isDemo: false,
       isDeleted: false,
       completedAt: { not: null as null },
+      accessLogId: null,
+      ...dateFilter,
+      ...channelFilter,
+    };
+
+    // QR読み込みログの条件
+    const scanFilter = {
+      clinicId,
+      eventType: QR_SCAN_EVENT_TYPE,
+      isDeleted: false,
       ...dateFilter,
       ...channelFilter,
     };
 
     // 履歴データとカウントを並行取得
-    const [sessions, totalCount] = await Promise.all([
+    const [sessions, sessionTotal, scans, scanTotal] = await Promise.all([
       prisma.diagnosisSession.findMany({
         where: whereFilter,
-        include: {
-          channel: { select: { id: true, name: true } },
-          diagnosisType: { select: { slug: true, name: true } },
-          ctaClicks: { select: { ctaType: true } },
-          _count: { select: { ctaClicks: true } },
-        },
+        include: HISTORY_SESSION_INCLUDE,
         orderBy: { createdAt: "desc" },
         skip: offset,
         take: limit + 1,
       }),
       prisma.diagnosisSession.count({ where: whereFilter }),
+      prisma.accessLog.findMany({
+        where: scanFilter,
+        include: HISTORY_SCAN_INCLUDE,
+        orderBy: { createdAt: "desc" },
+        skip: offset,
+        take: limit + 1,
+      }),
+      prisma.accessLog.count({ where: scanFilter }),
     ]);
 
-    const hasMore = sessions.length > limit;
-    const sessionsToReturn = hasMore ? sessions.slice(0, limit) : sessions;
+    const totalCount = sessionTotal + scanTotal;
 
-    type SessionWithRelations = {
-      id: string;
-      createdAt: Date;
-      userAge: number | null;
-      userGender: string | null;
-      resultCategory: string | null;
-      sessionType: string | null;
-      region: string | null;
-      city: string | null;
-      town: string | null;
-      channel: { id: string; name: string } | null;
-      diagnosisType: { slug: string; name: string } | null;
-      ctaClicks: { ctaType: string }[];
-      _count: { ctaClicks: number };
-    };
+    // 読み込み行（紐付く完了セッションがあれば属性を合体）とセッション行を統合
+    const combined = mergeHistoryRows(
+      (scans as unknown as HistoryScanLog[]).map((log) =>
+        formatScanRow(
+          log.session &&
+            (log.session as HistorySession & { isDeleted?: boolean }).isDeleted
+            ? { ...log, session: null }
+            : log
+        )
+      ),
+      (sessions as unknown as HistorySession[]).map(formatSessionRow)
+    );
 
-    const history = (sessionsToReturn as SessionWithRelations[]).map((s) => {
-      const ctaByType: Record<string, number> = {};
-      for (const click of s.ctaClicks) {
-        ctaByType[click.ctaType] = (ctaByType[click.ctaType] || 0) + 1;
-      }
-
-      let area = "-";
-      if (s.region && s.city && s.town) {
-        area = `${s.region} ${s.city} ${s.town}`;
-      } else if (s.region && s.city) {
-        area = `${s.region} ${s.city}`;
-      } else if (s.region) {
-        area = s.region;
-      }
-
-      let diagnosisTypeName: string;
-      if (s.sessionType === "link") {
-        diagnosisTypeName = "リンクQR";
-      } else {
-        diagnosisTypeName = s.diagnosisType?.name || DIAGNOSIS_TYPE_NAMES[s.diagnosisType?.slug || ""] || "不明";
-      }
-
-      const ctaClick = s.ctaClicks[0];
-
-      return {
-        id: s.id,
-        type: s.sessionType === "link" ? "link" : "diagnosis",
-        createdAt: s.createdAt,
-        userAge: s.userAge,
-        userGender: s.userGender ? GENDER_NAMES[s.userGender] || s.userGender : null,
-        diagnosisType: diagnosisTypeName,
-        resultCategory: s.resultCategory,
-        channelName: s.channel?.name || "不明",
-        area,
-        ctaType: ctaClick ? getCtaTypeName(ctaClick.ctaType) : null,
-        ctaClickCount: s._count.ctaClicks,
-        ctaByType,
-      };
-    });
+    const history = combined.slice(0, limit);
 
     return NextResponse.json({
       history,

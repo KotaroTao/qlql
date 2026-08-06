@@ -31,6 +31,7 @@ export async function DELETE(
           id,
           clinicId: session.clinicId,
         },
+        select: { id: true, session: { select: { id: true } } },
       });
 
       if (!accessLog) {
@@ -44,6 +45,15 @@ export async function DELETE(
         where: { id },
         data: { isDeleted: true },
       });
+
+      // 履歴では読み込みと完了セッションを1行にまとめて表示しているので、
+      // 紐付く完了セッションも一緒に消す（片方だけ残ると行が復活してしまう）
+      if (accessLog.session) {
+        await prisma.diagnosisSession.update({
+          where: { id: accessLog.session.id },
+          data: { isDeleted: true },
+        });
+      }
     } else {
       // DiagnosisSession の削除（diagnosis / link タイプ）
       const diagnosisSession = await prisma.diagnosisSession.findFirst({
@@ -51,6 +61,7 @@ export async function DELETE(
           id,
           clinicId: session.clinicId,
         },
+        select: { id: true, accessLogId: true },
       });
 
       if (!diagnosisSession) {
@@ -64,6 +75,15 @@ export async function DELETE(
         where: { id },
         data: { isDeleted: true },
       });
+
+      // 起点になったQR読み込みログも一緒に消す。
+      // 片方だけ残すと集計（QRアクセス）とエリア地図で数がズレるため、必ず対で削除する
+      if (diagnosisSession.accessLogId) {
+        await prisma.accessLog.update({
+          where: { id: diagnosisSession.accessLogId },
+          data: { isDeleted: true },
+        });
+      }
     }
 
     return NextResponse.json({ success: true });

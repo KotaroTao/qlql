@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getSubscriptionState } from "@/lib/subscription";
+import { getQrAccessCountsByChannel } from "@/lib/qr-access";
 
 // 医院に属するチラシ一覧を取得
 // 各チラシに紐付くQRごとの「QR名 / スキャン数」も併せて返す
@@ -87,64 +88,13 @@ export async function GET(request: NextRequest) {
     // 全チラシに紐付く全Channel IDを集めて、一括でスキャン関連カウントを取得
     const channelIds = flyers.flatMap((f) => f.channels.map((c) => c.id));
 
-    // qr_scan が本来のスキャン計測（2026/5/10〜記録）。
-    // qr_scan 計測導入前のフォールバックは DiagnosisSession 件数を使う。
-    // ─ link 型・diagnosis 型どちらも /api/track/link-complete または診断完了で 1 Session が
-    //   作られる設計なので、管理者ダッシュボードのセッション数と整合する。
-    //   （旧実装は link=CTAClick / diagnosis=page_view で数えていたが、page_view は
-    //   プロフィールページ訪問のため、DiagnosisSession 件数と一致しない場合があり、
-    //   管理者画面の「セッション数」と数字が合わない原因になっていた。）
-    const [qrScanCounts, sessionCounts] = await Promise.all([
-      channelIds.length > 0
-        ? prisma.accessLog.groupBy({
-            by: ["channelId"],
-            where: {
-              channelId: { in: channelIds },
-              isDeleted: false,
-              eventType: "qr_scan",
-              ...dateRangeFilter,
-            },
-            _count: { id: true },
-          })
-        : [],
-      channelIds.length > 0
-        ? prisma.diagnosisSession.groupBy({
-            by: ["channelId"],
-            where: {
-              channelId: { in: channelIds },
-              // 管理者ダッシュボードの sessionCount と同じフィルタ条件
-              isDemo: false,
-              isDeleted: false,
-              ...dateRangeFilter,
-            },
-            _count: { id: true },
-          })
-        : [],
-    ]);
-
-    const qrScanMap: Record<string, number> = {};
-    for (const r of qrScanCounts) if (r.channelId) qrScanMap[r.channelId] = r._count.id;
-    const sessionCountMap: Record<string, number> = {};
-    for (const r of sessionCounts) if (r.channelId) sessionCountMap[r.channelId] = r._count.id;
-
-    // 各 Channel ごとの実効スキャン数を計算
-    // qr_scan は 2026/5/10 から計測開始。それ以前のデータは qr_scan = 0 で
-    // フォールバック（DiagnosisSession 件数）で全件を補える。
-    // 計測開始後は qr_scan = sessions（1スキャン=1セッション）の関係になる想定だが、
-    // 「スキャンしたがプロフィール入力で離脱（バウンス）」したケースは
-    // qr_scan > sessions になる。両者の max を取ることで:
-    //   - 古いデータのみの期間: sessions で全件カバー
-    //   - 新データのみの期間: qr_scan が sessions と同数 or バウンス込みでより多い
-    //   - 古い+新しい混在: 通常 sessions が全期間カバーするので大きい方を採用
-    // この方が「セッション数37件あるのにスキャン1件しか見えない」状態を防げる。
-    const channelScansMap: Record<string, number> = {};
-    for (const f of flyers) {
-      for (const c of f.channels) {
-        const qrScans = qrScanMap[c.id] || 0;
-        const sessions = sessionCountMap[c.id] || 0;
-        channelScansMap[c.id] = Math.max(qrScans, sessions);
-      }
-    }
+    // 各 Channel ごとの「QRアクセス」= 実際にQRが読み込まれた回数。
+    // 数え方は src/lib/qr-access.ts に集約（ダッシュボード・共有ページ・管理画面と共通）。
+    // 画面下部の「QR読み込み履歴」の件数とも必ず一致する。
+    const channelScansMap = await getQrAccessCountsByChannel(
+      channelIds,
+      dateRangeFilter
+    );
 
     return NextResponse.json({
       flyers: flyers.map((f) => ({

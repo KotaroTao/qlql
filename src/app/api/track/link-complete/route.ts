@@ -5,6 +5,11 @@ import { reverseGeocode } from "@/lib/geocoding";
 import { canTrackSession } from "@/lib/subscription";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
+  clearQrScanCookie,
+  createSessionWithScanLink,
+  resolveScanLogId,
+} from "@/lib/qr-scan-link";
+import {
   sanitizeAge,
   sanitizeGender,
   sanitizeLatitude,
@@ -89,27 +94,29 @@ export async function POST(request: NextRequest) {
     let sessionId: string | null = null;
 
     if (canTrack) {
-      const session = await prisma.diagnosisSession.create({
-        data: {
-          clinicId: channel.clinicId,
-          channelId: channel.id,
-          diagnosisTypeId: null, // linkタイプは診断なし
-          sessionType: "link",
-          isDemo: false,
-          userAge,
-          userGender,
-          answers: null,
-          totalScore: null,
-          resultCategory: null,
-          completedAt: new Date(),
-          ipAddress: ip !== "unknown" ? ip : null,
-          latitude: roundedLat,
-          longitude: roundedLng,
-          country: location?.country || null,
-          region: location?.region || null,
-          city: location?.city || null,
-          town: location?.town || null,
-        },
+      // このセッションの起点になったQR読み込み（Cookie経由）を特定して紐付ける。
+      // 紐付けておくことで、集計時に「読み込み1件 + 完了1件」の二重カウントを防げる。
+      const scanLogId = await resolveScanLogId(request, channel.id);
+
+      const session = await createSessionWithScanLink(scanLogId, {
+        clinicId: channel.clinicId,
+        channelId: channel.id,
+        diagnosisTypeId: null, // linkタイプは診断なし
+        sessionType: "link",
+        isDemo: false,
+        userAge,
+        userGender,
+        // linkタイプは診断の回答が無いので JSON カラムは未設定のままにする
+        totalScore: null,
+        resultCategory: null,
+        completedAt: new Date(),
+        ipAddress: ip !== "unknown" ? ip : null,
+        latitude: roundedLat,
+        longitude: roundedLng,
+        country: location?.country || null,
+        region: location?.region || null,
+        city: location?.city || null,
+        town: location?.town || null,
       });
       sessionId = session.id;
 
@@ -130,12 +137,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({
+    // 使い切ったCookieは削除（同じ読み込みが2件のセッションに紐付かないように）
+    const response = NextResponse.json({
       success: true,
       sessionId,
       redirectUrl: channel.redirectUrl,
       tracked: canTrack,
     });
+    clearQrScanCookie(response);
+    return response;
   } catch (error) {
     console.error("Link complete error:", error);
     return NextResponse.json(

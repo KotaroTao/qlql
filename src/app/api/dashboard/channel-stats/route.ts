@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getQrAccessCountsByChannel } from "@/lib/qr-access";
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     // 各チャンネルの統計を取得
     const [
-      accessCounts,
+      accessCountMap,
       completedCounts,
       ctaCounts,
       ctaByChannel,
@@ -73,19 +74,8 @@ export async function GET(request: NextRequest) {
       ageByChannel,
       accessLogs,
     ] = await Promise.all([
-      // アクセス数（チャンネル別）- DiagnosisSessionベースで統一（削除済みを除外）
-      prisma.diagnosisSession.groupBy({
-        by: ["channelId"],
-        where: {
-          clinicId: session.clinicId,
-          channelId: { in: channelIds },
-          isDeleted: false,
-          isDemo: false,
-          completedAt: { not: null },
-          ...dateFilter,
-        },
-        _count: { id: true },
-      }),
+      // アクセス数（チャンネル別）= 実際にQRが読み込まれた回数（qr-access.ts の共通ルール）
+      getQrAccessCountsByChannel(channelIds, dateFilter),
 
       // 診断完了数（チャンネル別）
       prisma.diagnosisSession.groupBy({
@@ -194,10 +184,10 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // アクセス数（DiagnosisSessionベース）
-    for (const item of accessCounts) {
-      if (item.channelId && stats[item.channelId]) {
-        stats[item.channelId].accessCount = item._count.id;
+    // アクセス数（実際にQRが読み込まれた回数）
+    for (const [channelIdKey, count] of Object.entries(accessCountMap)) {
+      if (stats[channelIdKey]) {
+        stats[channelIdKey].accessCount = count;
       }
     }
 

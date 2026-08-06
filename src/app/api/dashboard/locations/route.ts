@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveClinicContext } from "@/lib/dashboard-auth";
 import { prisma } from "@/lib/prisma";
 import { forwardGeocode } from "@/lib/geocoding";
+import { QR_SCAN_EVENT_TYPE, getQrAccessTotal } from "@/lib/qr-access";
 import type { ClinicPage } from "@/types/clinic";
 
 interface LocationGroupResult {
@@ -85,6 +86,11 @@ export async function GET(request: NextRequest) {
     // 注意: 「市区町村だけ取れていて都道府県が無い」レコードも地図に出したいので、
     // region: { not: null } の要件は撤去。少なくとも city があれば緯度経度から
     // 地図にプロットできる（履歴では「📍 港区」のように表示される類のデータ）。
+    // 地図は「完了セッション（全件）＋ 完了に至らなかった読み込みログ」で構成する。
+    // 読み込みログは位置情報を持たない（リダイレクト高速化のため取得していない）のに対し、
+    // 完了セッションはGPSベースの詳細な位置を持つ。そこで、読み込みに紐付いた分は
+    // セッション側から拾うことで、件数を二重に数えずに位置の精度も保てる。
+    // → 合計は「QRアクセス（= 実際に読み込まれた回数）」と一致する（qr-access.ts 参照）
     const locationData = await prisma.diagnosisSession.groupBy({
       by: ["region", "city", "town", "channelId"],
       where: {
@@ -123,14 +129,16 @@ export async function GET(request: NextRequest) {
       type: "diagnosis" as const,
     }));
 
-    // QRスキャン（リンクタイプ）のエリアデータを取得
+    // 完了に至らなかったQR読み込みのエリアデータ（session: null で絞る）
+    // 完了しているものは上の locationData 側で数えているので、ここでは除外して二重計上を防ぐ。
     // 同上、region が無いレコードも city ベースで地図表示できるよう region 要件を撤去。
     const qrScanData = await prisma.accessLog.groupBy({
       by: ["region", "city", "channelId"],
       where: {
         clinicId: session.clinicId,
-        eventType: "qr_scan",
+        eventType: QR_SCAN_EVENT_TYPE,
         isDeleted: false,
+        session: { is: null },
         ...dateRangeFilter,
         city: { not: null },
         ...channelFilter,
@@ -183,13 +191,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // QRスキャンの都道府県別集計
+    // 完了に至らなかったQR読み込みの都道府県別集計（完了分はセッション側で計上済み）
     const qrScanRegionData = await prisma.accessLog.groupBy({
       by: ["region"],
       where: {
         clinicId: session.clinicId,
-        eventType: "qr_scan",
+        eventType: QR_SCAN_EVENT_TYPE,
         isDeleted: false,
+        session: { is: null },
         ...dateRangeFilter,
         region: { not: null },
         ...channelFilter,
@@ -215,29 +224,13 @@ export async function GET(request: NextRequest) {
       .map(([region, count]) => ({ region, count }))
       .sort((a, b) => b.count - a.count);
 
-    // 全体の件数（診断 + QRスキャン）
-    const [diagnosisTotal, qrScanTotal] = await Promise.all([
-      prisma.diagnosisSession.count({
-        where: {
-          clinicId: session.clinicId,
-          completedAt: { not: null },
-          isDemo: false,
-          isDeleted: false,
-          ...dateRangeFilter,
-          ...channelFilter,
-        },
-      }),
-      prisma.accessLog.count({
-        where: {
-          clinicId: session.clinicId,
-          eventType: "qr_scan",
-          isDeleted: false,
-          ...dateRangeFilter,
-          ...channelFilter,
-        },
-      }),
-    ]);
-    const total = diagnosisTotal + qrScanTotal;
+    // 全体の件数 = QRアクセス（実際にQRが読み込まれた回数）。
+    // 「◯件中 位置特定 △件」の分母になるので、履歴の件数・チラシのQRアクセスと一致する。
+    const total = await getQrAccessTotal({
+      clinicId: session.clinicId,
+      channelFilter,
+      dateRange: dateRangeFilter,
+    });
 
     // クリニックの住所から座標を取得
     let clinicCenter: { latitude: number; longitude: number } | null = null;

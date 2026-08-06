@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canCreateChannel } from "@/lib/subscription";
+import { getQrAccessCountsByChannel } from "@/lib/qr-access";
 import type { Channel } from "@/types/clinic";
 
 // QRコード一覧を取得（アクティブ・非表示両方）
@@ -71,29 +72,12 @@ export async function GET(request: NextRequest) {
       diagnosisNameMap[dt.slug] = dt.name;
     }
 
-    // 各チャンネルのQR読込数をDiagnosisSessionから取得（削除済みを除外）
+    // 各チャンネルのQR読込数（実際に読み込まれた回数）を共通ルールで取得
     const channelIds = channels.map((c) => c.id);
-    const sessionCounts = channelIds.length > 0
-      ? await prisma.diagnosisSession.groupBy({
-          by: ["channelId"],
-          where: {
-            channelId: { in: channelIds },
-            isDeleted: false,
-            completedAt: { not: null },
-            isDemo: false,
-            ...(dateFrom && dateTo ? { createdAt: { gte: dateFrom, lte: dateTo } } : {}),
-          },
-          _count: { id: true },
-        })
-      : [];
-
-    // カウントをマップに変換
-    const sessionCountMap: Record<string, number> = {};
-    for (const sc of sessionCounts) {
-      if (sc.channelId) {
-        sessionCountMap[sc.channelId] = sc._count.id;
-      }
-    }
+    const scanCountMap = await getQrAccessCountsByChannel(
+      channelIds,
+      dateFrom && dateTo ? { createdAt: { gte: dateFrom, lte: dateTo } } : {}
+    );
 
     // チャンネルに診断名とスキャン数を追加
     const channelsWithDiagnosisName = channels.map((c) => ({
@@ -101,7 +85,7 @@ export async function GET(request: NextRequest) {
       diagnosisTypeName: c.diagnosisTypeSlug
         ? diagnosisNameMap[c.diagnosisTypeSlug] || c.diagnosisTypeSlug
         : null,
-      scanCount: sessionCountMap[c.id] || 0,
+      scanCount: scanCountMap[c.id] || 0,
     }));
 
     const activeCount = channels.filter((c) => c.isActive).length;

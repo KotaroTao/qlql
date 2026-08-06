@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  QR_SCAN_EVENT_TYPE,
+  getQrAccessCountsByChannel,
+  getQrAccessTotal,
+} from "@/lib/qr-access";
 
 // 共有ダッシュボードのデータを取得（認証不要、トークンで医院を特定）
 export async function GET(
@@ -127,19 +132,15 @@ export async function GET(
       regionSessionData,
       regionAccessData,
       // 日別トレンド
-      dailyAccessRaw,
+      dailySessionRaw,
+      dailyUnlinkedScanRaw,
       dailyCtaRaw,
     ] = await Promise.all([
-      // QR読込数
-      prisma.diagnosisSession.count({
-        where: {
-          clinicId,
-          isDeleted: false,
-          isDemo: false,
-          completedAt: { not: null },
-          ...dateFilter,
-          ...channelFilter,
-        },
+      // QR読込数 = 実際にQRが読み込まれた回数（qr-access.ts の共通ルール）
+      getQrAccessTotal({
+        clinicId,
+        channelFilter,
+        dateRange: dateFilter,
       }),
 
       // 診断完了数
@@ -194,19 +195,8 @@ export async function GET(
         },
       }),
 
-      // チャンネル別アクセス数
-      prisma.diagnosisSession.groupBy({
-        by: ["channelId"],
-        where: {
-          clinicId,
-          isDeleted: false,
-          isDemo: false,
-          completedAt: { not: null },
-          ...dateFilter,
-          channelId: { in: activeChannelIds },
-        },
-        _count: { id: true },
-      }),
+      // チャンネル別アクセス数（実際にQRが読み込まれた回数）
+      getQrAccessCountsByChannel(activeChannelIds, dateFilter),
 
       // チャンネル別CTAクリック数
       prisma.cTAClick.groupBy({
@@ -235,13 +225,15 @@ export async function GET(
         _count: { id: true },
       }),
 
-      // 都道府県別集計（QRスキャン）
+      // 都道府県別集計（完了に至らなかったQR読み込み分）
+      // 完了した分は上の regionSessionData 側で計上済みなので、ここでは除外して二重計上を防ぐ
       prisma.accessLog.groupBy({
         by: ["region"],
         where: {
           clinicId,
-          eventType: "qr_scan",
+          eventType: QR_SCAN_EVENT_TYPE,
           isDeleted: false,
+          session: { is: null },
           ...dateFilter,
           ...channelFilter,
           region: { not: null },
@@ -249,13 +241,28 @@ export async function GET(
         _count: { id: true },
       }),
 
-      // 日別トレンド用：診断セッション（createdAtを含む）
+      // 日別トレンド用：完了セッション（createdAtを含む）
       prisma.diagnosisSession.findMany({
         where: {
           clinicId,
           isDeleted: false,
           isDemo: false,
           completedAt: { not: null },
+          ...dateFilter,
+          ...channelFilter,
+        },
+        select: { createdAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 5000,
+      }),
+
+      // 日別トレンド用：完了に至らなかったQR読み込み（上と合わせて読み込み回数になる）
+      prisma.accessLog.findMany({
+        where: {
+          clinicId,
+          eventType: QR_SCAN_EVENT_TYPE,
+          isDeleted: false,
+          session: { is: null },
           ...dateFilter,
           ...channelFilter,
         },
@@ -340,10 +347,7 @@ export async function GET(
       : 0;
 
     // チャンネル別の統計をまとめる
-    const channelAccessMap: Record<string, number> = {};
-    for (const item of channelAccessCounts) {
-      if (item.channelId) channelAccessMap[item.channelId] = item._count.id;
-    }
+    const channelAccessMap = channelAccessCounts;
     const channelCtaMap: Record<string, number> = {};
     for (const item of channelCtaCounts) {
       if (item.channelId) channelCtaMap[item.channelId] = item._count.id;
@@ -381,8 +385,9 @@ export async function GET(
       .slice(0, 10);
 
     // 日別トレンドデータを整形
+    // 完了セッションと「完了に至らなかった読み込み」を足すと読み込み回数になる
     const accessByDate: Record<string, number> = {};
-    for (const row of dailyAccessRaw) {
+    for (const row of [...dailySessionRaw, ...dailyUnlinkedScanRaw]) {
       const d = row.createdAt.toISOString().slice(0, 10);
       accessByDate[d] = (accessByDate[d] || 0) + 1;
     }

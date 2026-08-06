@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getQrAccessTotal } from "@/lib/qr-access";
 
 export async function GET(request: NextRequest) {
   try {
@@ -153,16 +154,15 @@ export async function GET(request: NextRequest) {
       prevCompletedCount,
       prevCtaCount,
     ] = await Promise.all([
-      // QR読込数（DiagnosisSessionベース - 削除済み連動）
-      prisma.diagnosisSession.count({
-        where: {
-          clinicId: session.clinicId,
-          isDeleted: false,
-          isDemo: false,
-          completedAt: { not: null },
-          ...(dateFrom && dateTo ? { createdAt: { gte: dateFrom, lte: dateTo } } : {}),
-          ...channelFilter,
-        },
+      // QR読込数 = 実際にQRが読み込まれた回数（qr-access.ts の共通ルール）
+      // 旧実装は「完了セッション数」だったため、完了率が必ず100%になっていた。
+      // 読み込みベースに変えたことで「読み込んだが完了しなかった人」が分母に入り、
+      // 完了率が実態を表すようになる。
+      getQrAccessTotal({
+        clinicId: session.clinicId,
+        channelFilter,
+        dateRange:
+          dateFrom && dateTo ? { createdAt: { gte: dateFrom, lte: dateTo } } : {},
       }),
 
       // 診断完了数
@@ -245,16 +245,14 @@ export async function GET(request: NextRequest) {
       }),
 
       // --- 前期データ ---
-      // 前期QR読込数（DiagnosisSessionベース）
-      prisma.diagnosisSession.count({
-        where: {
-          clinicId: session.clinicId,
-          isDeleted: false,
-          isDemo: false,
-          completedAt: { not: null },
-          ...(prevDateFrom && prevDateTo ? { createdAt: { gte: prevDateFrom, lte: prevDateTo } } : {}),
-          ...channelFilter,
-        },
+      // 前期QR読込数（同じく実際の読み込み回数ベース）
+      getQrAccessTotal({
+        clinicId: session.clinicId,
+        channelFilter,
+        dateRange:
+          prevDateFrom && prevDateTo
+            ? { createdAt: { gte: prevDateFrom, lte: prevDateTo } }
+            : {},
       }),
 
       // 前期診断完了数
@@ -280,7 +278,7 @@ export async function GET(request: NextRequest) {
       ctaCount += cta._count.id;
     }
 
-    // 完了率を計算（accessCountはDiagnosisSessionベースなので常に100%）
+    // 完了率 = 診断完了数 ÷ QR読込数（読み込んだ人のうち何割が完了したか）
     const completionRate =
       accessCount > 0 ? Math.round((completedCount / accessCount) * 100 * 10) / 10 : 0;
 
