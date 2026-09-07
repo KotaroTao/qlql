@@ -7,6 +7,7 @@ import {
   sanitizeString,
   sanitizeCtaType,
   sanitizeEventType,
+  sanitizeCompletionKey,
 } from "@/lib/track-validation";
 
 describe("sanitizeAge", () => {
@@ -107,5 +108,23 @@ describe("sanitizeEventType", () => {
   it("不正な値はデフォルト（page_view）", () => {
     expect(sanitizeEventType("invalid")).toBe("page_view");
     expect(sanitizeEventType(123)).toBe("page_view");
+  });
+});
+
+describe("sanitizeCompletionKey", () => {
+  it("英数字・ハイフン・アンダースコアの8〜64文字を通す", () => {
+    const uuid = "3f2504e0-4f89-11d3-9a0c-0305e82c3301";
+    expect(sanitizeCompletionKey(uuid)).toBe(uuid);
+    expect(sanitizeCompletionKey("abc_DEF-123")).toBe("abc_DEF-123");
+  });
+
+  it("形式が合わない値はnull", () => {
+    expect(sanitizeCompletionKey(null)).toBeNull();
+    expect(sanitizeCompletionKey(undefined)).toBeNull();
+    expect(sanitizeCompletionKey(123)).toBeNull();
+    expect(sanitizeCompletionKey("short")).toBeNull(); // 8文字未満
+    expect(sanitizeCompletionKey("a".repeat(65))).toBeNull(); // 64文字超
+    expect(sanitizeCompletionKey("has space here")).toBeNull();
+    expect(sanitizeCompletionKey("日本語のキーです")).toBeNull();
   });
 });

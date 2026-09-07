@@ -19,24 +19,37 @@ interface Props {
 }
 
 export function DiagnosisFlow({ diagnosis, isDemo, ctaConfig, clinicName, mainColor, channelId, channelDisplayName }: Props) {
-  const { userAge, currentStep, resultPattern, reset, answers, _hasHydrated } =
+  const { userAge, currentStep, resultPattern, completion, reset, answers, _hasHydrated } =
     useDiagnosisStore();
   const hasInitialized = useRef(false);
 
-  // コンポーネントがマウントされたらリセット（ただしプロファイル入力済みで未回答の場合はスキップ）
+  // コンポーネントがマウントされたらリセット（ただし次の2つの場合はスキップ）
+  //   1. プロファイル入力済みで未回答 → プロファイルページから遷移してきた直後
+  //   2. この診断の結果がすでに出ている → 結果画面のリロード／タブ復帰
+  //      （リセットすると入力画面に戻ってしまい、同じ人がもう一度診断して
+  //        履歴に2件記録される原因になっていた。結果はそのまま見せ続ける）
   // Zustandストアのハイドレーション完了を待つ
   useEffect(() => {
     if (!_hasHydrated) return;
     if (hasInitialized.current) return;
     hasInitialized.current = true;
 
-    // プロファイル入力済みで回答がまだない場合はリセットしない（プロファイルページから遷移）
+    // 1. プロファイル入力済みで回答がまだない場合はリセットしない（プロファイルページから遷移）
     if (userAge !== null && answers.length === 0 && resultPattern === null) {
+      return;
+    }
+    // 2. 同じ診断の結果が出ている場合もリセットしない（結果画面の再表示）
+    //    別の診断タイプの結果が残っている場合は取り違えになるのでリセットする
+    if (
+      resultPattern !== null &&
+      completion !== null &&
+      completion.diagnosisSlug === diagnosis.slug
+    ) {
       return;
     }
     // それ以外はリセット（新規開始または再診断）
     reset();
-  }, [_hasHydrated, reset, userAge, answers.length, resultPattern]);
+  }, [_hasHydrated, reset, userAge, answers.length, resultPattern, completion, diagnosis.slug]);
 
   // Zustandストアのハイドレーション中はローディング表示
   if (!_hasHydrated) {

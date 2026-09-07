@@ -7,10 +7,12 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import {
   clearQrScanCookie,
   createSessionWithScanLink,
+  findSessionByCompletionKey,
   resolveScanLogId,
 } from "@/lib/qr-scan-link";
 import {
   sanitizeAge,
+  sanitizeCompletionKey,
   sanitizeGender,
   sanitizeLatitude,
   sanitizeLongitude,
@@ -40,6 +42,9 @@ export async function POST(request: NextRequest) {
     const longitude = sanitizeLongitude(body.longitude);
     const totalScore = typeof body.totalScore === "number" ? body.totalScore : null;
     const resultCategory = sanitizeString(body.resultCategory, 100);
+    // 完了キー（ブラウザが結果ごとに1つ発行する合言葉）。
+    // 結果画面のリロードなどで同じ完了が再送信されたとき、これで見分ける。
+    const completionKey = sanitizeCompletionKey(body.completionKey);
 
     // チャンネルから医院IDを取得
     const channel = await prisma.channel.findUnique({
@@ -59,6 +64,21 @@ export async function POST(request: NextRequest) {
     if (!canTrack) {
       // 診断自体は成功として返す（ユーザー体験を損なわないため）
       return NextResponse.json({ success: true, sessionId: null, tracked: false });
+    }
+
+    // 同じ完了キーのセッションが既にあれば、それを返して終わり（新規作成しない）。
+    // 位置情報の逆ジオコーディングなど重い処理の前に確認して無駄を省く。
+    if (completionKey) {
+      const existing = await findSessionByCompletionKey(completionKey, channelId);
+      if (existing) {
+        const response = NextResponse.json({
+          success: true,
+          sessionId: existing.id,
+          deduplicated: true,
+        });
+        clearQrScanCookie(response);
+        return response;
+      }
     }
 
     // 診断タイプを取得
@@ -102,6 +122,7 @@ export async function POST(request: NextRequest) {
       clinicId: channel.clinicId,
       channelId,
       diagnosisTypeId: diagnosisTypeRecord.id,
+      clientKey: completionKey,
       isDemo: false,
       userAge,
       userGender,
@@ -119,7 +140,11 @@ export async function POST(request: NextRequest) {
     });
 
     // 使い切ったCookieは削除（同じ読み込みが2件のセッションに紐付かないように）
-    const response = NextResponse.json({ success: true, sessionId: session.id });
+    const response = NextResponse.json({
+      success: true,
+      sessionId: session.id,
+      deduplicated: session.deduplicated,
+    });
     clearQrScanCookie(response);
     return response;
   } catch (error) {

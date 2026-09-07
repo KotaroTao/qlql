@@ -7,6 +7,27 @@ interface Answer {
   score: number;
 }
 
+// 「この診断結果の完了記録」を表すメモ。
+// 結果が出た瞬間に1回だけ発行され、結果画面を再読み込み（リロード・タブ復帰など）しても
+// 同じ結果には同じ key が付いたままなので、サーバーが「もう記録済み」と判別できる。
+export interface CompletionRecord {
+  // 完了1件につき1つの合言葉（サーバー側で重複防止の鍵として使う）
+  key: string;
+  // どの診断タイプの結果か（別の診断の結果を取り違えて表示しないため）
+  diagnosisSlug: string;
+  // サーバーに記録済みならそのセッションID（未送信・失敗なら null）
+  sessionId: string | null;
+}
+
+// ブラウザで完了キーを生成する。crypto.randomUUID が使えない古い環境向けの予備あり。
+export function generateCompletionKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  const rand = () => Math.random().toString(36).slice(2, 10);
+  return `${Date.now().toString(36)}-${rand()}-${rand()}`;
+}
+
 interface DiagnosisState {
   // ハイドレーション状態
   _hasHydrated: boolean;
@@ -27,6 +48,8 @@ interface DiagnosisState {
   totalScore: number | null;
   resultPattern: ResultPattern | null;
   oralAge: number | null;
+  // 完了記録（結果が出るまでは null）
+  completion: CompletionRecord | null;
 
   // アクション
   setProfile: (age: number, gender: string | null, locationConsent: boolean) => void;
@@ -35,6 +58,8 @@ interface DiagnosisState {
   nextStep: () => void;
   prevStep: () => void;
   calculateResult: (diagnosis: DiagnosisType) => void;
+  // サーバーへの完了記録が済んだらセッションIDを控える
+  markCompletionTracked: (sessionId: string | null) => void;
   reset: () => void;
 }
 
@@ -54,6 +79,7 @@ export const useDiagnosisStore = create<DiagnosisState>()(
       totalScore: null,
       resultPattern: null,
       oralAge: null,
+      completion: null,
 
       setProfile: (age, gender, locationConsent) => set({ userAge: age, userGender: gender, locationConsent }),
       setLocation: (latitude, longitude) => set({ latitude, longitude }),
@@ -89,8 +115,26 @@ export const useDiagnosisStore = create<DiagnosisState>()(
           oralAge = userAge + resultPattern.ageModifier;
         }
 
-        set({ totalScore, resultPattern, oralAge });
+        // 結果が確定したタイミングで完了キーを1つ発行する。
+        // 同じ結果に対しては（リロードしても）このキーが使い回される。
+        set({
+          totalScore,
+          resultPattern,
+          oralAge,
+          completion: {
+            key: generateCompletionKey(),
+            diagnosisSlug: diagnosis.slug,
+            sessionId: null,
+          },
+        });
       },
+
+      markCompletionTracked: (sessionId) =>
+        set((state) =>
+          state.completion
+            ? { completion: { ...state.completion, sessionId } }
+            : {}
+        ),
 
       reset: () =>
         set({
@@ -104,6 +148,7 @@ export const useDiagnosisStore = create<DiagnosisState>()(
           totalScore: null,
           resultPattern: null,
           oralAge: null,
+          completion: null,
         }),
     }),
     {
@@ -138,6 +183,7 @@ export const useDiagnosisStore = create<DiagnosisState>()(
         totalScore: state.totalScore,
         resultPattern: state.resultPattern,
         oralAge: state.oralAge,
+        completion: state.completion,
       }),
     }
   )
