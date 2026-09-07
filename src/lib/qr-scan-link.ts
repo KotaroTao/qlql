@@ -106,27 +106,66 @@ function isUniqueConstraintError(error: unknown): boolean {
 }
 
 /**
+ * 完了キーが一致する既存セッションを探す。
+ * 同じチャネルのものだけを「同じ完了」とみなす（別チャネルのキーは無関係）。
+ */
+export async function findSessionByCompletionKey(
+  clientKey: string,
+  channelId: string
+) {
+  return prisma.diagnosisSession.findFirst({
+    where: { clientKey, channelId },
+    select: { id: true },
+  });
+}
+
+/**
  * 診断/入力セッションを作成する。読み込みログIDが取れていれば紐付ける。
  *
- * ごく稀に、同じCookieを持った2つのタブがほぼ同時に完了して
- * 同じ読み込みIDを取り合うことがある。その場合は紐付けを諦めて
- * 「紐付けなしのセッション」として作り直す（記録自体は必ず残す）。
+ * 重複防止（完了キー）:
+ *   data.clientKey が付いている場合、同じキーのセッションが既にあれば
+ *   新しく作らずそれを返す。結果画面のリロード等で同じ完了が2回届いても1件で済む。
+ *   ほぼ同時に2回届いてどちらも「既存なし」と判断した場合も、DBのユニーク制約が
+ *   2件目を弾くので、そのときは改めて既存の1件を探して返す。
+ *
+ * 読み込みログの取り合い:
+ *   ごく稀に、同じCookieを持った2つのタブがほぼ同時に完了して
+ *   同じ読み込みIDを取り合うことがある。その場合は紐付けを諦めて
+ *   「紐付けなしのセッション」として作り直す（記録自体は必ず残す）。
  */
 export async function createSessionWithScanLink(
   accessLogId: string | null,
   data: Omit<Prisma.DiagnosisSessionUncheckedCreateInput, "accessLogId">
-) {
-  if (!accessLogId) {
-    return prisma.diagnosisSession.create({ data });
+): Promise<{ id: string; deduplicated: boolean }> {
+  const clientKey = typeof data.clientKey === "string" ? data.clientKey : null;
+  const channelId = typeof data.channelId === "string" ? data.channelId : null;
+
+  // 完了キーで既存セッションを探す（同じ完了の再送信なら既存を返す）
+  if (clientKey && channelId) {
+    const existing = await findSessionByCompletionKey(clientKey, channelId);
+    if (existing) return { id: existing.id, deduplicated: true };
   }
+
+  const createData = accessLogId ? { ...data, accessLogId } : data;
+
   try {
-    return await prisma.diagnosisSession.create({
-      data: { ...data, accessLogId },
-    });
+    const created = await prisma.diagnosisSession.create({ data: createData });
+    return { id: created.id, deduplicated: false };
   } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      return prisma.diagnosisSession.create({ data });
+    if (!isUniqueConstraintError(error)) throw error;
+
+    // ユニーク制約違反の原因が完了キーなら、先に作られた1件を返す
+    if (clientKey && channelId) {
+      const existing = await findSessionByCompletionKey(clientKey, channelId);
+      if (existing) return { id: existing.id, deduplicated: true };
     }
+
+    // 原因が読み込みIDの取り合いなら、紐付けなしで作り直す
+    if (accessLogId) {
+      const created = await prisma.diagnosisSession.create({ data });
+      return { id: created.id, deduplicated: false };
+    }
+
     throw error;
   }
 }

@@ -183,6 +183,12 @@ model DiagnosisSession {
   // null になるケース: qr_scan 計測開始（2026/5/10）より前のデータ、
   // QRを介さず直接URLを開いた場合、Cookieが失効/ブロックされていた場合。
   accessLogId String? @unique @map("access_log_id")
+
+  // ブラウザ側が発行する「完了1件につき1つの合言葉」（重複記録防止の鍵）。
+  // 結果画面のリロードやタブ復帰で同じ完了が再送信されても、
+  // この値が同じなら新しいセッションを作らず既存の1件を返す。
+  // null になるケース: 完了キー導入前の古いデータ、キーを送らない古いクライアント。
+  clientKey   String? @unique @map("client_key")
   userAge         Int?      @map("user_age")
   userGender      String?   @map("user_gender")
   answers         Json?

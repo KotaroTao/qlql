@@ -21,8 +21,20 @@ interface Props {
 }
 
 export function ResultCard({ diagnosis, isDemo, ctaConfig, clinicName, mainColor, channelId }: Props) {
-  const { userAge, userGender, answers, totalScore, resultPattern, oralAge, latitude, longitude, reset, _hasHydrated } =
-    useDiagnosisStore();
+  const {
+    userAge,
+    userGender,
+    answers,
+    totalScore,
+    resultPattern,
+    oralAge,
+    latitude,
+    longitude,
+    completion,
+    markCompletionTracked,
+    reset,
+    _hasHydrated,
+  } = useDiagnosisStore();
   const hasTrackedRef = useRef(false);
   const [showCopied, setShowCopied] = useState(false);
 
@@ -30,10 +42,21 @@ export function ResultCard({ diagnosis, isDemo, ctaConfig, clinicName, mainColor
   const sessionIdPromiseRef = useRef<Promise<string | null> | null>(null);
 
   // 診断完了をトラッキング（非デモモードのみ、1回だけ）
+  //
+  // 「1回だけ」の判定は、画面のメモ（hasTrackedRef）だけでなく、
+  // sessionStorage に保存されたストアの completion.sessionId でも行う。
+  // → 結果画面をリロードしたり、いったん閉じたタブが復元されたりして
+  //   このコンポーネントが作り直されても、同じ完了を二重に送信しない。
   useEffect(() => {
     if (!_hasHydrated) return;
     if (isDemo || !channelId || !resultPattern || hasTrackedRef.current) return;
     hasTrackedRef.current = true;
+
+    // すでにサーバーに記録済み → 送信せず、控えてあるセッションIDをCTA計測に使う
+    if (completion?.sessionId) {
+      sessionIdPromiseRef.current = Promise.resolve(completion.sessionId);
+      return;
+    }
 
     sessionIdPromiseRef.current = fetch("/api/track/complete", {
       method: "POST",
@@ -48,12 +71,33 @@ export function ResultCard({ diagnosis, isDemo, ctaConfig, clinicName, mainColor
         resultCategory: resultPattern.category,
         latitude,
         longitude,
+        // 完了キー: サーバー側で「同じ完了の再送信」を見分けるための合言葉
+        completionKey: completion?.key ?? null,
       }),
     })
       .then((res) => res.json())
-      .then((data) => data.sessionId || null)
+      .then((data) => {
+        const sessionId: string | null = data.sessionId || null;
+        // 記録できたらストアに控える（次にこの画面が作り直されても再送信しない）
+        if (sessionId) markCompletionTracked(sessionId);
+        return sessionId;
+      })
       .catch(() => null);
-  }, [_hasHydrated, isDemo, channelId, diagnosis.slug, resultPattern, userAge, userGender, answers, totalScore, latitude, longitude]);
+  }, [
+    _hasHydrated,
+    isDemo,
+    channelId,
+    diagnosis.slug,
+    resultPattern,
+    userAge,
+    userGender,
+    answers,
+    totalScore,
+    latitude,
+    longitude,
+    completion,
+    markCompletionTracked,
+  ]);
 
   if (!resultPattern) return null;
 

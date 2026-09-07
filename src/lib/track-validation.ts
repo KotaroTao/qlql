@@ -64,3 +64,13 @@ export function sanitizeEventType(value: unknown): string {
   if (typeof value !== "string") return "page_view";
   return VALID_EVENT_TYPES.includes(value) ? value : "page_view";
 }
+
+/**
+ * 完了キー（ブラウザが発行する重複防止用の合言葉）を検証。
+ * 英数字と - _ のみ、8〜64文字。形式が合わなければ null（＝キーなしとして扱う）
+ */
+const COMPLETION_KEY_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+export function sanitizeCompletionKey(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  return COMPLETION_KEY_PATTERN.test(value) ? value : null;
+}

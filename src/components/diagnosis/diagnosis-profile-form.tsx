@@ -21,7 +21,7 @@ interface Props {
 
 export function DiagnosisProfileForm({ channelCode, channelPublicName, diagnosisTypeSlug, mainColor = "#2563eb" }: Props) {
   const router = useRouter();
-  const { setProfile, setLocation } = useDiagnosisStore();
+  const { setProfile, setLocation, reset } = useDiagnosisStore();
 
   const [age, setAge] = useState("");
   const [gender, setGender] = useState<string | null>(null);
@@ -46,6 +46,11 @@ export function DiagnosisProfileForm({ channelCode, channelPublicName, diagnosis
   // プロファイルを保存して診断ページへ
   const completeAndRedirect = (latitude: number | null, longitude: number | null) => {
     setIsSubmitting(true);
+
+    // 前回の診断結果（同じタブで診断済みの場合）が残っていると、
+    // 診断ページ側で「結果画面の再表示」と誤認されるので、ここで必ず白紙に戻す。
+    // このページに来た＝QRを読み込み直した＝新しい診断の開始、という扱い。
+    reset();
 
     // Zustandストアにプロファイルを保存
     setProfile(parseInt(age, 10), gender, latitude !== null);
@@ -89,6 +94,8 @@ export function DiagnosisProfileForm({ channelCode, channelPublicName, diagnosis
   // 入力全体をスキップ
   const handleSkipAll = () => {
     setIsSubmitting(true);
+    // 前回の結果が残っていても新しい診断として始める
+    reset();
     // 空のプロファイルで診断ページへ
     setProfile(0, null, false);
     setLocation(null, null);
